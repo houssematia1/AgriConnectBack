@@ -15,10 +15,15 @@ public class User {
     private String email;
     private String motDePasse;
     private String numeroDeTelephone;
+
+    // Role : "admin", "agriculteur", "livreur", "user" (par défaut)
     private String role;
+
+    // Adresse de livraison (nullable) – applicable uniquement pour le client normal
     private String adresseLivraison;
 
-    public User() {}
+    public User() {
+    }
 
     public User(String nom, String prenom, String email, String motDePasse, String numeroDeTelephone, String role, String adresseLivraison) {
         this.nom = nom;
@@ -30,68 +35,61 @@ public class User {
         this.adresseLivraison = adresseLivraison;
     }
 
-    // Getters and setters
+    // Avant la persistance, si le rôle n'est pas défini, on le met à "user"
+    @PrePersist
+    public void prePersist() {
+        if (role == null || role.trim().isEmpty()) {
+            role = "user";
+        }
+    }
+
+    // Getters et Setters
 
     public Long getId() {
         return id;
     }
-
     public void setId(Long id) {
         this.id = id;
     }
-
     public String getNom() {
         return nom;
     }
-
     public void setNom(String nom) {
         this.nom = nom;
     }
-
     public String getPrenom() {
         return prenom;
     }
-
     public void setPrenom(String prenom) {
         this.prenom = prenom;
     }
-
     public String getEmail() {
         return email;
     }
-
     public void setEmail(String email) {
         this.email = email;
     }
-
     public String getMotDePasse() {
         return motDePasse;
     }
-
     public void setMotDePasse(String motDePasse) {
         this.motDePasse = motDePasse;
     }
-
     public String getNumeroDeTelephone() {
         return numeroDeTelephone;
     }
-
     public void setNumeroDeTelephone(String numeroDeTelephone) {
         this.numeroDeTelephone = numeroDeTelephone;
     }
-
     public String getRole() {
         return role;
     }
-
     public void setRole(String role) {
         this.role = role;
     }
-
     public String getAdresseLivraison() {
         return adresseLivraison;
     }
-
     public void setAdresseLivraison(String adresseLivraison) {
         this.adresseLivraison = adresseLivraison;
     }

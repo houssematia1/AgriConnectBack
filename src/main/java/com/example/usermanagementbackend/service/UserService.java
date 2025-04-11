@@ -34,40 +34,15 @@ public class UserService {
         return userRepository.findByEmail(email);
     }
 
-    public Optional<User> getUserById(Long id) {
-        return userRepository.findById(id);
-    }
-
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
+    // Méthode pour supprimer un utilisateur par son id
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
             throw new RuntimeException("User not found with id: " + id);
         }
         userRepository.deleteById(id);
-    }
-
-    public User updateUser(Long id, User user) {
-        Optional<User> existingUserOpt = userRepository.findById(id);
-        if (!existingUserOpt.isPresent()) {
-            throw new RuntimeException("User not found with id: " + id);
-        }
-        User existingUser = existingUserOpt.get();
-        existingUser.setNom(user.getNom());
-        existingUser.setPrenom(user.getPrenom());
-        existingUser.setEmail(user.getEmail());
-        if (user.getMotDePasse() != null && !user.getMotDePasse().isEmpty()) {
-            String hashedPassword = passwordEncoder.encode(user.getMotDePasse());
-            existingUser.setMotDePasse(hashedPassword);
-        }
-        existingUser.setNumeroDeTelephone(user.getNumeroDeTelephone());
-        existingUser.setRole(user.getRole());
-        existingUser.setAdresseLivraison(user.getAdresseLivraison());
-        return userRepository.save(existingUser);
-    }
-    public List<User> searchUsers(String query) {
-        return userRepository.findByNomContainingIgnoreCaseOrPrenomContainingIgnoreCaseOrEmailContainingIgnoreCase(query, query, query);
     }
 }

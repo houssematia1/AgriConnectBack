@@ -8,11 +8,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
+// Si vous avez une configuration CORS globale, vous pouvez retirer cette annotation
 @CrossOrigin(origins = "http://localhost:4200")
 public class AuthController {
 
@@ -24,24 +24,20 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
-        // Recherche de l'utilisateur par email
+        // 1. Recherche de l'utilisateur par email
         Optional<User> optionalUser = userRepository.findByEmail(loginRequest.getEmail());
         if (!optionalUser.isPresent()) {
-            return ResponseEntity.status(401)
-                    .body(Collections.singletonMap("error", "Utilisateur non trouvé"));
+            return ResponseEntity.status(401).body("Utilisateur non trouvé");
         }
 
+        // 2. Vérification du mot de passe haché
         User user = optionalUser.get();
-        // Vérification du mot de passe
         if (!passwordEncoder.matches(loginRequest.getMotDePasse(), user.getMotDePasse())) {
-            return ResponseEntity.status(401)
-                    .body(Collections.singletonMap("error", "Mot de passe incorrect"));
+            return ResponseEntity.status(401).body("Mot de passe incorrect");
         }
 
-
-
-
-        user.setMotDePasse(null);
-        return ResponseEntity.ok(user);
+        // 3. Login réussi
+        // Pour une application réelle, vous pourriez générer et renvoyer un JWT ici.
+        return ResponseEntity.ok("Login réussi");
     }
 }
