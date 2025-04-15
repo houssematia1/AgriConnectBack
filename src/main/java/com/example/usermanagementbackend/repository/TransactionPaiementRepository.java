@@ -10,4 +10,6 @@ import java.util.List;
 @Repository
 public interface TransactionPaiementRepository extends JpaRepository<TransactionPaiement, Long> {
     List<TransactionPaiement> findByCommande(Commande commande);
+
+    List<TransactionPaiement> findByCommandeId(Long id);
 }

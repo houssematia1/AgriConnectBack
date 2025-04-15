@@ -2,7 +2,6 @@ package com.example.usermanagementbackend.service;
 
 import com.example.usermanagementbackend.entity.Commande;
 import com.example.usermanagementbackend.entity.Facture;
-import com.example.usermanagementbackend.entity.OrderStatus;
 import com.example.usermanagementbackend.entity.TransactionPaiement;
 import com.example.usermanagementbackend.repository.CommandeRepository;
 import com.example.usermanagementbackend.repository.TransactionPaiementRepository;
@@ -11,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import com.example.usermanagementbackend.entity.Commande.OrderStatus;
 
 @Service
 public class TransactionPaiementService {

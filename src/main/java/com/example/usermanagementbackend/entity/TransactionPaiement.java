@@ -1,28 +1,33 @@
 package com.example.usermanagementbackend.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
+@Entity
 @Getter
 @Setter
-@Entity
-@Table(name = "transaction_paiement")
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
 public class TransactionPaiement {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Double montant;
-    private String methodePaiement;
-
-    @Temporal(TemporalType.TIMESTAMP)
-    private LocalDateTime dateTransaction;
-
     @ManyToOne
     @JoinColumn(name = "commande_id")
     private Commande commande;
+
+    @ManyToOne
+    @JoinColumn(name = "client_id")
+    private Client client;
+
+    private Double montant;
+    private String methodePaiement;
+    private LocalDateTime dateTransaction;
+    private String paymentStatus;
+    private String paymentGatewayReference;
 }

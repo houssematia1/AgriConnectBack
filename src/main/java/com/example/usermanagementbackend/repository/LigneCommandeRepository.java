@@ -7,6 +7,5 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 @Repository
 public interface LigneCommandeRepository extends JpaRepository<LigneCommande, Long> {
-    List<LigneCommande> findByFactureId(Long factureId);
     List<LigneCommande> findByCommandeId(Long commandeId);
 }

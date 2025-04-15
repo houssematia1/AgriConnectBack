@@ -1,14 +1,16 @@
 package com.example.usermanagementbackend.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
+@Entity
 @Getter
 @Setter
-@Entity
-@Table(name = "ligne_facture")
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
 public class LigneFacture {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -18,10 +20,10 @@ public class LigneFacture {
     private Facture facture;
 
     @ManyToOne
-    @JoinColumn(name = "ref_produit")
+    @JoinColumn(name = "produit_id")
     private Produit produit;
 
-    private int qte;
+    private Integer qte;
     private Double prixUnitaire;
     private Double total;
     private Double ttc;

@@ -30,8 +30,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll() // Allow GET requests for users
                 .requestMatchers(HttpMethod.DELETE, "/api/users/**").permitAll() // Allow DELETE requests for users
                 .requestMatchers(HttpMethod.PUT, "/api/users/**").permitAll() // Allow authenticated users to update
-                .requestMatchers("/factures/**").permitAll()
-                .requestMatchers("/commandes/**").permitAll()
+                .requestMatchers("/api/factures/**").permitAll()
+                .requestMatchers("/api/commandes/**").permitAll()
                 // Allow access to /notifications/** for everyone
                 // All other requests must be authenticated
                 .anyRequest().authenticated();

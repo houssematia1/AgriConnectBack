@@ -1,11 +1,12 @@
 package com.example.usermanagementbackend.service;
 
+import com.example.usermanagementbackend.entity.Commande;
 import com.example.usermanagementbackend.entity.Facture;
 import com.example.usermanagementbackend.entity.LigneFacture;
+import com.example.usermanagementbackend.entity.TransactionPaiement;
 import com.example.usermanagementbackend.repository.CommandeRepository;
 import com.example.usermanagementbackend.repository.FactureRepository;
-
-
+import com.example.usermanagementbackend.repository.TransactionPaiementRepository;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
@@ -20,14 +21,18 @@ import java.util.Optional;
 
 @Service
 public class FactureService {
+
     private final FactureRepository factureRepository;
     private final CommandeRepository commandeRepository;
     private final LigneFactureService ligneFactureService;
+    private final TransactionPaiementRepository transactionPaiementRepository;
 
-    public FactureService(FactureRepository factureRepository, CommandeRepository commandeRepository, LigneFactureService ligneFactureService) {
+    public FactureService(FactureRepository factureRepository, CommandeRepository commandeRepository,
+                          LigneFactureService ligneFactureService, TransactionPaiementRepository transactionPaiementRepository) {
         this.factureRepository = factureRepository;
         this.commandeRepository = commandeRepository;
         this.ligneFactureService = ligneFactureService;
+        this.transactionPaiementRepository = transactionPaiementRepository;
     }
 
     public List<Facture> getAllFactures() {
@@ -39,18 +44,20 @@ public class FactureService {
     }
 
     public Facture saveFacture(Facture facture) {
-        // Validation
         if (facture.getCommande() == null) {
-            throw new IllegalArgumentException("Commande must not be null");
+            throw new IllegalArgumentException("Commande doit être spécifiée");
         }
         if (commandeRepository.findById(facture.getCommande().getId()).isEmpty()) {
-            throw new IllegalArgumentException("Commande not found with ID: " + facture.getCommande().getId());
+            throw new IllegalArgumentException("Commande non trouvée avec l'ID: " + facture.getCommande().getId());
         }
         if (facture.getMontantTotal() == null || facture.getMontantTotal() <= 0) {
             throw new IllegalArgumentException("Le montant total de la facture doit être supérieur à 0");
         }
 
-        // Set invoice date and numeroFacture if not provided
+        if (facture.getClient() == null && facture.getCommande().getClient() != null) {
+            facture.setClient(facture.getCommande().getClient());
+        }
+
         if (facture.getDateFacture() == null) {
             facture.setDateFacture(LocalDate.now());
         }
@@ -58,10 +65,8 @@ public class FactureService {
             facture.setNumeroFacture("FACT-" + System.currentTimeMillis());
         }
 
-        // Save the facture first
         Facture savedFacture = factureRepository.save(facture);
 
-        // Save associated lignesFacture
         if (facture.getLignesFacture() != null) {
             for (LigneFacture ligne : facture.getLignesFacture()) {
                 ligne.setFacture(savedFacture);
@@ -69,9 +74,7 @@ public class FactureService {
             }
         }
 
-        // Generate PDF for the invoice
         generateInvoicePDF(savedFacture);
-
         return savedFacture;
     }
 
@@ -82,7 +85,11 @@ public class FactureService {
         existing.setMontantTotal(updatedFacture.getMontantTotal());
         existing.setDateFacture(updatedFacture.getDateFacture());
         existing.setNumeroFacture(updatedFacture.getNumeroFacture());
-        return factureRepository.save(existing);
+        existing.setClient(updatedFacture.getClient());
+
+        Facture savedFacture = factureRepository.save(existing);
+        generateInvoicePDF(savedFacture);
+        return savedFacture;
     }
 
     public void deleteFacture(Long id) {
@@ -94,26 +101,50 @@ public class FactureService {
 
     private void generateInvoicePDF(Facture facture) {
         try {
-            // Validate facture
-            if (facture == null) {
-                throw new IllegalArgumentException("Facture cannot be null");
-            }
-            if (facture.getCommande() == null) {
-                throw new IllegalArgumentException("Commande associated with Facture cannot be null");
+            if (facture == null || facture.getCommande() == null) {
+                throw new IllegalArgumentException("Facture ou commande invalide");
             }
 
-            // Create PDF document
-            PdfDocument pdfDoc = new PdfDocument(new PdfWriter("invoice_" + facture.getId() + ".pdf"));
+            PdfDocument pdfDoc = new PdfDocument(new PdfWriter("invoices/invoice_" + facture.getId() + ".pdf"));
             Document doc = new Document(pdfDoc);
 
-            // Add invoice header details
-            doc.add(new Paragraph("Invoice #" + (facture.getNumeroFacture() != null ? facture.getNumeroFacture() : "N/A")));
-            doc.add(new Paragraph("Date: " + (facture.getDateFacture() != null ? facture.getDateFacture().toString() : "N/A")));
-            doc.add(new Paragraph("Order ID: " + facture.getCommande().getId()));
-            doc.add(new Paragraph("Client: " + (facture.getCommande().getClientNom() != null ? facture.getCommande().getClientNom() : "N/A")));
+            // Client details
+            String clientName = (facture.getClient() != null && facture.getClient().getName() != null)
+                    ? facture.getClient().getName() : "N/A";
+            doc.add(new Paragraph("Client: " + clientName));
+            String clientEmail = (facture.getClient() != null && facture.getClient().getEmail() != null)
+                    ? facture.getClient().getEmail() : "N/A";
+            doc.add(new Paragraph("Email: " + clientEmail));
+            String clientPhone = (facture.getClient() != null && facture.getClient().getPhone() != null)
+                    ? facture.getClient().getPhone() : "N/A";
+            doc.add(new Paragraph("Téléphone: " + clientPhone));
             doc.add(new Paragraph(""));
 
-            // Add invoice lines in a table
+            // Delivery details from Commande
+            Commande commande = facture.getCommande();
+            doc.add(new Paragraph("Livraison:"));
+            doc.add(new Paragraph("Téléphone: " + (commande.getTelephone() != null ? commande.getTelephone() : "N/A")));
+            doc.add(new Paragraph("Gouvernorat: " + (commande.getGouvernement() != null ? commande.getGouvernement() : "N/A")));
+            doc.add(new Paragraph("Adresse: " + (commande.getAdresse() != null ? commande.getAdresse() : "N/A")));
+            doc.add(new Paragraph(""));
+
+            // Invoice details
+            doc.add(new Paragraph("Facture #" + (facture.getNumeroFacture() != null ? facture.getNumeroFacture() : "N/A")));
+            doc.add(new Paragraph("Date: " + (facture.getDateFacture() != null ? facture.getDateFacture().toString() : "N/A")));
+            doc.add(new Paragraph("Commande ID: " + commande.getId()));
+            doc.add(new Paragraph("Statut: " + (commande.getStatus() != null ? commande.getStatus().toString() : "N/A")));
+            doc.add(new Paragraph(""));
+
+            // Payment status
+            List<TransactionPaiement> transactions = transactionPaiementRepository.findByCommandeId(facture.getCommande().getId());
+            String paymentStatus = transactions.isEmpty() ? "Non payé" : transactions.get(0).getPaymentStatus();
+            doc.add(new Paragraph("Statut du paiement: " + paymentStatus));
+            if (!transactions.isEmpty() && transactions.get(0).getPaymentGatewayReference() != null) {
+                doc.add(new Paragraph("Référence de paiement: " + transactions.get(0).getPaymentGatewayReference()));
+            }
+            doc.add(new Paragraph(""));
+
+            // Invoice lines
             List<LigneFacture> lignesFacture = ligneFactureService.getLignesFactureByFactureId(facture.getId());
             if (!lignesFacture.isEmpty()) {
                 Table table = new Table(new float[]{2, 2, 1, 1, 1, 1});
@@ -137,14 +168,10 @@ public class FactureService {
                 doc.add(new Paragraph(""));
             }
 
-            // Add total amount
-            doc.add(new Paragraph("Total Amount: $" + (facture.getMontantTotal() != null ? facture.getMontantTotal() : "0.0")));
-
-            // Close the document
+            doc.add(new Paragraph("Montant Total: TND " + (facture.getMontantTotal() != null ? facture.getMontantTotal() : "0.0")));
             doc.close();
         } catch (Exception e) {
-            throw new RuntimeException("Erreur lors de la génération du PDF pour la facture #" +
-                    (facture != null && facture.getId() != null ? facture.getId() : "unknown") + ": " + e.getMessage(), e);
+            throw new RuntimeException("Erreur lors de la génération du PDF: " + e.getMessage(), e);
         }
     }
 }
