@@ -17,5 +17,4 @@ public class UserDTO {
     private String numeroDeTelephone;
     private String role;
     private String adresseLivraison;
-    private String vehicule;
 }

@@ -2,21 +2,19 @@ package com.example.usermanagementbackend.dto;
 
 import com.example.usermanagementbackend.entity.StatusLivraison;
 import com.example.usermanagementbackend.entity.TypeLivraison;
-import lombok.*;
-
+import lombok.Data;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@ToString
+@Data
 public class LivraisonDTO {
     private Long id;
     private LocalDate dateLivraison;
     private StatusLivraison statusLivraison;
     private TypeLivraison typeLivraison;
-    private LivreurDTO livreur; // Changed from Long livreurId to LivreurDTO
+    private LivreurDTO livreur;
     private String photo;
     private String reason;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

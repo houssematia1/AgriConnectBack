@@ -22,7 +22,6 @@ public class LivraisonMapper {
         livreur.setNom(dto.getLivreur().getNom());
         livreur.setEmail(dto.getLivreur().getEmail());
         livreur.setTelephone(dto.getLivreur().getTelephone());
-        livreur.setVehicule(dto.getLivreur().getVehicule());
         User user = new User();
         user.setId(dto.getLivreur().getUserId());
         livreur.setUser(user);
@@ -45,7 +44,6 @@ public class LivraisonMapper {
         livreurDTO.setNom(livraison.getLivreur().getNom());
         livreurDTO.setEmail(livraison.getLivreur().getEmail());
         livreurDTO.setTelephone(livraison.getLivreur().getTelephone());
-        livreurDTO.setVehicule(livraison.getLivreur().getVehicule());
         livreurDTO.setUserId(livraison.getLivreur().getUser().getId());
         dto.setLivreur(livreurDTO);
 

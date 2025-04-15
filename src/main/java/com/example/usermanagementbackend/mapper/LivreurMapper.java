@@ -12,7 +12,6 @@ public class LivreurMapper {
                 livreur.getNom(),
                 livreur.getEmail(),
                 livreur.getTelephone(),
-                livreur.getVehicule(),
                 livreur.getUser() != null ? livreur.getUser().getId() : null
         );
     }
@@ -24,7 +23,6 @@ public class LivreurMapper {
         livreur.setNom(dto.getNom());
         livreur.setEmail(dto.getEmail());
         livreur.setTelephone(dto.getTelephone());
-        livreur.setVehicule(dto.getVehicule());
         return livreur;
     }
 }

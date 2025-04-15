@@ -24,12 +24,18 @@ public class SecurityConfig {
                 .httpBasic().disable()  // Disable HTTP Basic Authentication
                 .formLogin().disable()  // Disable form-based login
                 .authorizeRequests()
-                // Allow access to registration and authentication routes for everyone
-                .requestMatchers("/api/users/register", "/api/auth/**").permitAll()  // Allow registration and login for all users
-                .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll() // Allow GET requests for users
-                .requestMatchers(HttpMethod.DELETE, "/api/users/**").permitAll() // Allow DELETE requests for users
-                // Restrict PUT requests for authenticated users
-                .requestMatchers(HttpMethod.PUT, "/api/users/**").permitAll() // Allow authenticated users to update
+                // Allow access to registration and authentication routes
+                .requestMatchers("/api/users/register", "/api/auth/**").permitAll()
+                // Allow access to Livraison endpoints
+                .requestMatchers("/api/livraisons/**").permitAll()
+                // Allow access to Commande endpoints
+                .requestMatchers("/api/commandes/**").permitAll()
+                // Allow GET requests for users
+                .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()
+                // Allow DELETE requests for users
+                .requestMatchers(HttpMethod.DELETE, "/api/users/**").permitAll()
+                // Allow PUT requests for users
+                .requestMatchers(HttpMethod.PUT, "/api/users/**").permitAll()
                 // All other requests must be authenticated
                 .anyRequest().authenticated();
 

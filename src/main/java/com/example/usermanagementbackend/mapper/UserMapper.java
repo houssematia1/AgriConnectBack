@@ -13,8 +13,7 @@ public class UserMapper {
                 null, // Don't send password
                 user.getNumeroDeTelephone(),
                 user.getRole(),
-                user.getAdresseLivraison(),
-                user.getVehicule()
+                user.getAdresseLivraison()
         );
     }
 
@@ -28,7 +27,6 @@ public class UserMapper {
         user.setNumeroDeTelephone(dto.getNumeroDeTelephone());
         user.setRole(dto.getRole());
         user.setAdresseLivraison(dto.getAdresseLivraison());
-        user.setVehicule(dto.getVehicule());
         return user;
     }
 }

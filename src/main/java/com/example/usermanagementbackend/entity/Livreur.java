@@ -27,8 +27,7 @@ public class Livreur {
     @Column(nullable = false)
     private String telephone;
 
-    @Column(nullable = false)
-    private String vehicule;
+
 
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false)

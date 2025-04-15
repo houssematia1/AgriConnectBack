@@ -22,6 +22,7 @@ public class LivraisonController {
 
     @PostMapping("/create")
     public ResponseEntity<LivraisonDTO> createLivraison(@RequestBody LivraisonDTO livraisonDTO) {
+        System.out.println("Requête reçue : " + livraisonDTO);
         LivraisonDTO createdLivraison = livraisonService.addLivraison(livraisonDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdLivraison);
     }

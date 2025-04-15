@@ -17,12 +17,11 @@ public class User {
     private String numeroDeTelephone;
     private String role;
     private String adresseLivraison;
-    private String vehicule; // Added missing field declaration
 
     public User() {}
 
     public User(String nom, String prenom, String email, String motDePasse, String numeroDeTelephone,
-                String role, String adresseLivraison, String vehicule) { // Added vehicule parameter
+                String role, String adresseLivraison  ) {
         this.nom = nom;
         this.prenom = prenom;
         this.email = email;
@@ -30,7 +29,6 @@ public class User {
         this.numeroDeTelephone = numeroDeTelephone;
         this.role = role;
         this.adresseLivraison = adresseLivraison;
-        this.vehicule = vehicule; // Corrected assignment
     }
 
     // Getters and setters
@@ -50,6 +48,5 @@ public class User {
     public void setRole(String role) { this.role = role; }
     public String getAdresseLivraison() { return adresseLivraison; }
     public void setAdresseLivraison(String adresseLivraison) { this.adresseLivraison = adresseLivraison; }
-    public String getVehicule() { return vehicule; } // Added missing getter
-    public void setVehicule(String vehicule) { this.vehicule = vehicule; }
+
 }
