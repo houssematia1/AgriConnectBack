@@ -4,12 +4,12 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
 @Entity
-@Table(name = "TransactionPaiement")
+@Table(name = "transaction_paiement")
 public class TransactionPaiement {
 
     @Id
@@ -20,14 +20,9 @@ public class TransactionPaiement {
     private String methodePaiement;
 
     @Temporal(TemporalType.TIMESTAMP)
-    private Date dateTransaction;
+    private LocalDateTime dateTransaction;
 
     @ManyToOne
     @JoinColumn(name = "commande_id")
     private Commande commande;
-
-    public void listCommande(Commande commande) {
-
-    }
-
 }

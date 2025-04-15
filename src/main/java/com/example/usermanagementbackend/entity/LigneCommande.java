@@ -8,27 +8,25 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "ligneCommande")
-
+@Table(name = "ligne_commande")
 public class LigneCommande {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @ManyToOne
-    @JoinColumn(name = "facture_id")
-    private Facture facture;
-    @ManyToOne
-    @JoinColumn(name="NUM_COMMANDE")
+    @JoinColumn(name = "num_commande")
     private Commande commande;
 
     @ManyToOne
-    @JoinColumn(name="REF_PRODUIT")
+    @JoinColumn(name = "ref_produit")
     @JsonIgnore
     private Produit produit;
+    @ManyToOne
+    private Facture facture;
 
     private int qte;
+    private double prixUnitaire;
     private double total;
     private double ttc;
-
-
 }

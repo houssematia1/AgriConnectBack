@@ -4,13 +4,13 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.Date;
+import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "facture")
-
 public class Facture {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,10 +18,12 @@ public class Facture {
 
     private Double montantTotal;
     private String numeroFacture;
-    private Date dateFacture;
+    private LocalDate dateFacture;
 
     @ManyToOne
     @JoinColumn(name = "commande_id", nullable = false)
     private Commande commande;
 
+    @OneToMany(mappedBy = "facture", cascade = CascadeType.ALL)
+    private List<LigneFacture> lignesFacture;
 }

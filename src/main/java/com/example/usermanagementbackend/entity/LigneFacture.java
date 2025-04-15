@@ -7,25 +7,22 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "ligneFacture")
-
-public class LigneFacture  {
+@Table(name = "ligne_facture")
+public class LigneFacture {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name="NUM_FACTURE")
+    @JoinColumn(name = "facture_id")
     private Facture facture;
 
     @ManyToOne
-    @JoinColumn(name="REF_PRODUIT")
+    @JoinColumn(name = "ref_produit")
     private Produit produit;
 
     private int qte;
-    private double prix;
-    private double total;
-    private double ttc;
-
-
+    private Double prixUnitaire;
+    private Double total;
+    private Double ttc;
 }
