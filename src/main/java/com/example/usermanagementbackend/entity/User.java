@@ -3,6 +3,8 @@ package com.example.usermanagementbackend.entity;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "users")
 public class User {
@@ -21,6 +23,15 @@ public class User {
     private boolean isBlocked = false;
     private String verificationCode;
     private boolean verified = false;
+    private String resetCode;
+    private LocalDateTime derniereConnexion;
+    private int nombreConnexions;
+    private int actionsEffectuees = 0;
+    private int nombreBlocages = 0;
+
+
+
+
 
     public User() {}
 
@@ -115,4 +126,49 @@ public class User {
         this.verified = verified;
     }
 
+    public String getResetCode() {
+        return resetCode;
+    }
+
+    public void setResetCode(String resetCode) {
+        this.resetCode = resetCode;
+    }
+
+    public LocalDateTime getDerniereConnexion() {
+        return derniereConnexion;
+    }
+
+    public void setDerniereConnexion(LocalDateTime derniereConnexion) {
+        this.derniereConnexion = derniereConnexion;
+    }
+
+    public int getNombreConnexions() {
+        return nombreConnexions;
+    }
+
+    public void setNombreConnexions(int nombreConnexions) {
+        this.nombreConnexions = nombreConnexions;
+    }
+
+    public int getActionsEffectuees() {
+        return actionsEffectuees;
+    }
+
+    public void setActionsEffectuees(int actionsEffectuees) {
+        this.actionsEffectuees = actionsEffectuees;
+    }
+    public void incrementerActions() {
+        this.actionsEffectuees++;
+    }
+    public int getNombreBlocages() {
+        return nombreBlocages;
+    }
+
+    public void setNombreBlocages(int nombreBlocages) {
+        this.nombreBlocages = nombreBlocages;
+    }
+
+    public void incrementerBlocages() {
+        this.nombreBlocages++;
+    }
 }

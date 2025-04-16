@@ -5,12 +5,21 @@ import com.example.usermanagementbackend.repository.UserRepository;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -122,4 +131,95 @@ public class UserService {
     public List<User> searchUsers(String query) {
         return userRepository.findByNomContainingIgnoreCaseOrPrenomContainingIgnoreCaseOrEmailContainingIgnoreCase(query, query, query);
     }
+    public void sendPasswordResetCode(String email) {
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (!userOpt.isPresent()) {
+            throw new RuntimeException("Aucun utilisateur trouvé avec cet email.");
+        }
+
+        User user = userOpt.get();
+
+        String code = String.valueOf((int)(Math.random() * 900000) + 100000);
+        user.setResetCode(code);
+        userRepository.save(user);
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, "utf-8");
+
+            helper.setTo(email);
+            helper.setSubject("Réinitialisation de mot de passe - AgriConnect");
+
+            String htmlContent = "<div style='font-family: Arial, sans-serif; font-size: 16px;'>"
+                    + "<p>Bonjour,</p>"
+                    + "<p>Voici votre code de réinitialisation de mot de passe :</p>"
+                    + "<h2 style='color: #007bff;'>" + code + "</h2>"
+                    + "<p>Utilisez ce code pour réinitialiser votre mot de passe.</p>"
+                    + "<br><p>Cordialement,<br>L’équipe AgriConnect</p>"
+                    + "</div>";
+
+            helper.setText(htmlContent, true);
+            helper.setFrom("noreply@agriconnect.com");
+
+            mailSender.send(message);
+        } catch (MessagingException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Erreur lors de l'envoi du mail de réinitialisation.");
+        }
+    }
+    public Map<String, Long> getUserStats() {
+        List<User> allUsers = userRepository.findAll();
+
+        long blocked = allUsers.stream().filter(User::isBlocked).count();
+        long admins = allUsers.stream().filter(u -> "admin".equalsIgnoreCase(u.getRole())).count();
+        long normal = allUsers.stream().filter(u -> !"admin".equalsIgnoreCase(u.getRole())).count();
+
+        Map<String, Long> stats = new HashMap<>();
+        stats.put("bloqués", blocked);
+        stats.put("admins", admins);
+        stats.put("normaux", normal);
+        return stats;
+    }
+
+    public void mettreAJourConnexion(User user) {
+        user.setDerniereConnexion(LocalDateTime.now());
+        user.setNombreConnexions(user.getNombreConnexions() + 1);
+        userRepository.save(user);
+    }
+    public void incrementerActions(Long userId) {
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            user.incrementerActions();
+            userRepository.save(user);
+        }
+    }
+    public double predictChurnRisk(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("last_login", user.getDerniereConnexion() != null
+                ? user.getDerniereConnexion().toString()
+                : LocalDateTime.now().toString()); // éviter null
+        data.put("login_count", user.getNombreConnexions());
+        data.put("actions_count", user.getActionsEffectuees());
+        data.put("is_blocked", user.isBlocked());
+        data.put("is_verified", user.isVerified());
+        data.put("block_count", user.getNombreBlocages()); // ✅
+
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    "http://localhost:8000/predict", data, Map.class);
+
+            return ((Number) response.getBody().get("risk_score")).doubleValue(); // ✅ match
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur dans la prédiction : " + e.getMessage());
+        }
+    }
+
+
+
+
 }

@@ -5,9 +5,9 @@ import com.example.usermanagementbackend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/users")
@@ -54,6 +54,8 @@ public class UserController {
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
         try {
             userService.deleteUser(id);
+            // ✅ Action admin simulée
+            userService.incrementerActions(1L);
             return ResponseEntity.ok("Utilisateur supprimé avec succès.");
         } catch (RuntimeException ex) {
             return ResponseEntity.status(404).body(ex.getMessage());
@@ -70,6 +72,7 @@ public class UserController {
         User user = userOpt.get();
         user.setIsBlocked(true);
         userService.saveUserDirect(user);
+        userService.incrementerActions(1L); // ✅ simule admin ID 1
 
         return ResponseEntity.ok("Utilisateur bloqué avec succès.");
     }
@@ -84,6 +87,7 @@ public class UserController {
         User user = userOpt.get();
         user.setIsBlocked(false);
         userService.saveUserDirect(user);
+        userService.incrementerActions(1L); // ✅ idem ici
 
         return ResponseEntity.ok("Utilisateur débloqué avec succès.");
     }
@@ -127,6 +131,20 @@ public class UserController {
             return ResponseEntity.ok("Vérification réussie !");
         } else {
             return ResponseEntity.status(400).body("Code de vérification invalide.");
+        }
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<Map<String, Long>> getUserStatistics() {
+        return ResponseEntity.ok(userService.getUserStats());
+    }
+    @GetMapping("/predict/{id}")
+    public ResponseEntity<?> predictRisk(@PathVariable Long id) {
+        try {
+            double score = userService.predictChurnRisk(id);
+            return ResponseEntity.ok(Collections.singletonMap("risk_score", score));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Erreur IA : " + e.getMessage());
         }
     }
 }
