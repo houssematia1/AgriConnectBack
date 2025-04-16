@@ -1,5 +1,6 @@
 package com.example.usermanagementbackend.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 @Entity
@@ -17,6 +18,9 @@ public class User {
     private String numeroDeTelephone;
     private String role;
     private String adresseLivraison;
+    private boolean isBlocked = false;
+    private String verificationCode;
+    private boolean verified = false;
 
     public User() {}
 
@@ -30,12 +34,9 @@ public class User {
         this.adresseLivraison = adresseLivraison;
     }
 
-    // Getters and setters
-
     public Long getId() {
         return id;
     }
-
     public void setId(Long id) {
         this.id = id;
     }
@@ -43,7 +44,6 @@ public class User {
     public String getNom() {
         return nom;
     }
-
     public void setNom(String nom) {
         this.nom = nom;
     }
@@ -51,7 +51,6 @@ public class User {
     public String getPrenom() {
         return prenom;
     }
-
     public void setPrenom(String prenom) {
         this.prenom = prenom;
     }
@@ -59,7 +58,6 @@ public class User {
     public String getEmail() {
         return email;
     }
-
     public void setEmail(String email) {
         this.email = email;
     }
@@ -67,7 +65,6 @@ public class User {
     public String getMotDePasse() {
         return motDePasse;
     }
-
     public void setMotDePasse(String motDePasse) {
         this.motDePasse = motDePasse;
     }
@@ -75,7 +72,6 @@ public class User {
     public String getNumeroDeTelephone() {
         return numeroDeTelephone;
     }
-
     public void setNumeroDeTelephone(String numeroDeTelephone) {
         this.numeroDeTelephone = numeroDeTelephone;
     }
@@ -83,7 +79,6 @@ public class User {
     public String getRole() {
         return role;
     }
-
     public void setRole(String role) {
         this.role = role;
     }
@@ -91,8 +86,33 @@ public class User {
     public String getAdresseLivraison() {
         return adresseLivraison;
     }
-
     public void setAdresseLivraison(String adresseLivraison) {
         this.adresseLivraison = adresseLivraison;
     }
+
+    @JsonProperty("isBlocked")
+    public boolean isBlocked() {
+        return isBlocked;
+    }
+
+    public void setIsBlocked(boolean isBlocked) {
+        this.isBlocked = isBlocked;
+    }
+
+    public String getVerificationCode() {
+        return verificationCode;
+    }
+
+    public void setVerificationCode(String verificationCode) {
+        this.verificationCode = verificationCode;
+    }
+
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public void setVerified(boolean verified) {
+        this.verified = verified;
+    }
+
 }

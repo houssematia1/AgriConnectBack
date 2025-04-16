@@ -24,24 +24,34 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
-        // Recherche de l'utilisateur par email
-        Optional<User> optionalUser = userRepository.findByEmail(loginRequest.getEmail());
+        Optional<User> optionalUser;
+        try {
+            optionalUser = userRepository.findByEmail(loginRequest.getEmail());
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(Collections.singletonMap("error", "Conflit : plusieurs comptes existent avec cet email."));
+        }
+
         if (!optionalUser.isPresent()) {
             return ResponseEntity.status(401)
                     .body(Collections.singletonMap("error", "Utilisateur non trouvé"));
         }
 
         User user = optionalUser.get();
-        // Vérification du mot de passe
+
+        if (user.isBlocked()) {
+            return ResponseEntity.status(403)
+                    .body(Collections.singletonMap("error", "Votre compte est bloqué. Veuillez contacter l’administrateur."));
+        }
+
         if (!passwordEncoder.matches(loginRequest.getMotDePasse(), user.getMotDePasse())) {
             return ResponseEntity.status(401)
                     .body(Collections.singletonMap("error", "Mot de passe incorrect"));
         }
 
-
-
-
         user.setMotDePasse(null);
         return ResponseEntity.ok(user);
     }
+
+
 }

@@ -19,19 +19,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors().and() // Enable CORS if required
-                .csrf().disable()  // Disable CSRF (you can enable it based on your app's needs)
-                .httpBasic().disable()  // Disable HTTP Basic Authentication
-                .formLogin().disable()  // Disable form-based login
+                .cors().and()
+                .csrf().disable()
+                .httpBasic().disable()
+                .formLogin().disable()
                 .authorizeRequests()
-                // Allow access to registration and authentication routes for everyone
-                .requestMatchers("/api/users/register", "/api/auth/**").permitAll()  // Allow registration and login for all users
-                .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll() // Allow GET requests for users
-                .requestMatchers(HttpMethod.DELETE, "/api/users/**").permitAll() // Allow DELETE requests for users
-                // Restrict PUT requests for authenticated users
-                .requestMatchers(HttpMethod.PUT, "/api/users/**").permitAll() // Allow authenticated users to update
-                // All other requests must be authenticated
-                .anyRequest().authenticated();
+                // ⛔ Autoriser toutes les requêtes sans authentification (DEBUG uniquement)
+                .anyRequest().permitAll();
 
         return http.build();
     }

@@ -20,30 +20,22 @@ public class UserController {
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody User user) {
         try {
-            // Enregistrer un utilisateur
             User savedUser = userService.saveUser(user);
-            return ResponseEntity.ok(savedUser);  // Retourne l'utilisateur enregistré
+            return ResponseEntity.ok(savedUser);
         } catch (RuntimeException ex) {
-            return ResponseEntity.status(409).body(ex.getMessage());  // 409 Conflict si un email est déjà utilisé
+            return ResponseEntity.status(409).body(ex.getMessage());
         }
     }
 
-
     @PutMapping("/{id}")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User user) {
-        try {
-            // Vérification si l'utilisateur existe
-            Optional<User> existingUser = userService.getUserById(id);
-            if (!existingUser.isPresent()) {
-                return ResponseEntity.status(404).body("Utilisateur non trouvé");
-            }
-
-
-            User updatedUser = userService.updateUser(id, user);
-            return ResponseEntity.ok(updatedUser);
-        } catch (RuntimeException ex) {
-            return ResponseEntity.status(500).body(ex.getMessage());
+        Optional<User> existingUser = userService.getUserById(id);
+        if (!existingUser.isPresent()) {
+            return ResponseEntity.status(404).body("Utilisateur non trouvé");
         }
+
+        User updatedUser = userService.updateUser(id, user);
+        return ResponseEntity.ok(updatedUser);
     }
 
     @GetMapping("/getByEmail")
@@ -62,15 +54,79 @@ public class UserController {
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
         try {
             userService.deleteUser(id);
-            return ResponseEntity.ok("User deleted successfully");
+            return ResponseEntity.ok("Utilisateur supprimé avec succès.");
         } catch (RuntimeException ex) {
             return ResponseEntity.status(404).body(ex.getMessage());
         }
     }
+
+    @PutMapping("/block/{id}")
+    public ResponseEntity<?> blockUser(@PathVariable Long id) {
+        Optional<User> userOpt = userService.getUserById(id);
+        if (!userOpt.isPresent()) {
+            return ResponseEntity.status(404).body("Utilisateur introuvable.");
+        }
+
+        User user = userOpt.get();
+        user.setIsBlocked(true);
+        userService.saveUserDirect(user);
+
+        return ResponseEntity.ok("Utilisateur bloqué avec succès.");
+    }
+
+    @PutMapping("/unblock/{id}")
+    public ResponseEntity<?> unblockUser(@PathVariable Long id) {
+        Optional<User> userOpt = userService.getUserById(id);
+        if (!userOpt.isPresent()) {
+            return ResponseEntity.status(404).body("Utilisateur introuvable.");
+        }
+
+        User user = userOpt.get();
+        user.setIsBlocked(false);
+        userService.saveUserDirect(user);
+
+        return ResponseEntity.ok("Utilisateur débloqué avec succès.");
+    }
+
     @GetMapping("/search")
     public ResponseEntity<List<User>> searchUsers(@RequestParam("query") String query) {
-        // Recherche des utilisateurs par nom, prénom ou email
         List<User> users = userService.searchUsers(query);
         return ResponseEntity.ok(users);
+    }
+
+    @PostMapping("/verify")
+    public ResponseEntity<?> verifyUser(@RequestParam String email, @RequestParam String code) {
+        Optional<User> userOpt;
+
+        try {
+            userOpt = userService.getUserByEmail(email);
+        } catch (Exception ex) {
+            return ResponseEntity.status(500)
+                    .body("Erreur interne : plusieurs comptes utilisent cet email.");
+        }
+
+        if (!userOpt.isPresent()) {
+            return ResponseEntity.status(404).body("Utilisateur introuvable.");
+        }
+
+        User user = userOpt.get();
+
+        if (user.isVerified()) {
+            return ResponseEntity.ok("Compte déjà vérifié.");
+        }
+
+        String codeRecu = code.trim().replace("\"", "");
+        String codeAttendu = user.getVerificationCode() != null
+                ? user.getVerificationCode().trim()
+                : "";
+
+        if (codeAttendu.equalsIgnoreCase(codeRecu)) {
+            user.setVerified(true);
+            user.setVerificationCode(null);
+            userService.saveUserDirect(user);
+            return ResponseEntity.ok("Vérification réussie !");
+        } else {
+            return ResponseEntity.status(400).body("Code de vérification invalide.");
+        }
     }
 }
