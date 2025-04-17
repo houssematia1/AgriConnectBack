@@ -1,6 +1,5 @@
 package com.example.usermanagementbackend.entity;
 
-
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -8,7 +7,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.format.annotation.DateTimeFormat;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Entity
 @Table(name = "PRODUITS")
@@ -22,7 +23,10 @@ public class Produit {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    private String description;
+
     private String nom;
+
     private double prix;
 
     @Column(length = 3)
@@ -43,9 +47,16 @@ public class Produit {
     private String image; // Image du produit
 
     private int stock; // Quantité en stock
+
     private int seuilMin; // Seuil minimal pour alerte
 
     private boolean autoReapprovisionnement; // Activer/Désactiver auto-réappro
-    private int quantiteReapprovisionnement; // Quantité pour auto-réappro
-}
 
+    private int quantiteReapprovisionnement; // Quantité pour auto-réappro
+
+    @Column(name = "sales_count")
+    private Integer salesCount = 0; // New field to track sales count, initialized to 0
+
+    @ManyToMany(mappedBy = "produits")
+    private List<Promotion> promotions = new ArrayList<>();
+}

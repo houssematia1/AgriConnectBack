@@ -1,3 +1,4 @@
+
 package com.example.usermanagementbackend.controller;
 
 
@@ -34,4 +35,3 @@ public class NotificationController {
         return "Notification envoyée avec succès!";
     }
 }
-

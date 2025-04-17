@@ -31,4 +31,3 @@ public class Notification {
     private TypeNotification type;
     private Long destinataire; // ID de l'agriculteur ou du client concerné
 }
-

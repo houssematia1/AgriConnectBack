@@ -7,11 +7,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/promotions")
-@CrossOrigin(origins = "*") // Autorise les requêtes CORS pour le frontend
+@CrossOrigin(origins = "http://localhost:4200") // Allow requests from the Angular frontend
 public class PromotionController {
 
     private final PromotionService promotionService;
@@ -38,12 +39,18 @@ public class PromotionController {
     // Ajouter une nouvelle promotion
     @PostMapping("/add")
     public ResponseEntity<Promotion> createPromotion(@RequestBody Promotion promotion) {
+        if (promotion == null || promotion.getNom() == null || promotion.getNom().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(null);
+        }
         return ResponseEntity.ok(promotionService.createPromotion(promotion));
     }
 
     // Modifier une promotion
     @PutMapping("/{id}")
     public ResponseEntity<Promotion> updatePromotion(@PathVariable Integer id, @RequestBody Promotion promotion) {
+        if (promotion == null || promotion.getNom() == null || promotion.getNom().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(null);
+        }
         return promotionService.getPromotionById(id)
                 .map(existingPromotion -> ResponseEntity.ok(promotionService.updatePromotion(id, promotion)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -62,8 +69,11 @@ public class PromotionController {
     // Appliquer une promotion seulement si certaines conditions sont remplies
     @GetMapping("/appliquer/{id}/{montant}")
     public ResponseEntity<Double> appliquerPromotion(@PathVariable Integer id, @PathVariable double montant) {
+        if (montant <= 0) {
+            return ResponseEntity.badRequest().body(montant);
+        }
         Optional<Promotion> promo = promotionService.getPromotionById(id);
-        if (promo.isPresent() && promo.get().isActive()) { // Vérifie si la promotion est active
+        if (promo.isPresent() && promo.get().isActive()) {
             double nouveauMontant = promotionService.appliquerPromotion(montant, promo.get());
             return ResponseEntity.ok(nouveauMontant);
         }
@@ -76,91 +86,47 @@ public class PromotionController {
         return ResponseEntity.ok(promotionService.getPromotionsActives());
     }
 
-
     @PostMapping("/appliquer-expiration")
     public ResponseEntity<?> appliquerPromotionExpirationProduit() {
         promotionService.appliquerPromotionExpirationProduit();
         return ResponseEntity.ok("Promotion appliquée aux produits expirant sous 5 jours.");
     }
 
-
-
-
-
-
-    @PostMapping("/appliquer-promo-fidelite/{utilisateurId}")
-    public ResponseEntity<Double> appliquerPromoFidelite(
-            @PathVariable Integer utilisateurId,
-            @RequestParam double montantTotal) {
-
-        double montantReduit = promotionService.appliquerPromoFidelite(utilisateurId, montantTotal);
-        return ResponseEntity.ok(montantReduit);
+    // Bulk action endpoints (fixed method names)
+    @PostMapping("/bulk-activate")
+    public ResponseEntity<Void> bulkActivate(@RequestBody List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        promotionService.bulkActivate(ids); // Fixed method name
+        return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/bulk-deactivate")
+    public ResponseEntity<Void> bulkDeactivate(@RequestBody List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        promotionService.bulkDeactivate(ids); // Fixed method name
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/bulk-delete")
+    public ResponseEntity<Void> bulkDelete(@RequestBody List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        promotionService.bulkDelete(ids); // Fixed method name
+        return ResponseEntity.ok().build();
+    }
+
+    // New endpoint for analytics
+    @GetMapping("/analytics")
+    public ResponseEntity<Map<String, Object>> getPromotionAnalytics() {
+        Map<String, Object> analytics = promotionService.getPromotionAnalytics();
+        if (analytics.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(analytics);
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    //Récupérer les promotions actives (Si tu veux lister uniquement les promotions en cours)
-    //@GetMapping("/active")
-    //public ResponseEntity<List<Promotion>> getActivePromotions();
-
-
-    //Récupérer les promotions d'un produit spécifique(Si chaque promotion est liée à un produit, tu peux récupérer les promotions associées à un produit en fonction de son ID)
-   // @GetMapping("/product/{productId}")
-   // public ResponseEntity<List<Promotion>> getPromotionsByProduct(@PathVariable Long productId);
-
-    //Rechercher une promotion par nom ou description(Permet aux utilisateurs de rechercher une promotion spécifique)
-   // @GetMapping("/search")
-    //public ResponseEntity<List<Promotion>> searchPromotions(@RequestParam String keyword);
-
-
-    //Appliquer une promotion sur un produit (ou une liste de produits) (Si une promotion doit être appliquée sur un produit, tu peux créer une méthode comme )
-   // @PostMapping("/{promotionId}/apply/{productId}")
-    //public ResponseEntity<String> applyPromotionToProduct(@PathVariable Long promotionId, @PathVariable Long productId);
-
-//Vérifier si un produit bénéficie actuellement d'une promotion
-//@GetMapping("/check/{productId}")
-//public ResponseEntity<Boolean> isProductOnPromotion(@PathVariable Long productId);
-
-
-    //Obtenir la réduction appliquée sur un produit donné(Si tu veux récupérer le montant ou le pourcentage de réduction pour un produit )
-   // @GetMapping("/discount/{productId}")
-   // public ResponseEntity<Double> getDiscountForProduct(@PathVariable Long productId);
-
-//Désactiver une promotion (au lieu de la supprimer)
-//@PutMapping("/{id}/disable")
-//public ResponseEntity<Void> disablePromotion(@PathVariable Long id);
-

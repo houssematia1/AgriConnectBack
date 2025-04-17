@@ -1,5 +1,6 @@
 package com.example.usermanagementbackend.enums;
 
+
 public enum TypeNotification {
     STOCK_BAS,       // ⚠️ Stock faible
     NOUVEAU_PRODUIT, // 🚀 Nouveau produit disponible
@@ -7,6 +8,10 @@ public enum TypeNotification {
     REAPPRO_AUTO  ,// 🔄 Réapprovisionnement automatique
     STOCK,
     PERTE_STOCK,//deja epuisé
-    DON
+    DON,
+    MESSAGE,
+    ALERTE
+
+
 
 }

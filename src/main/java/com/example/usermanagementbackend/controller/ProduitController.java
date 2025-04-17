@@ -1,11 +1,11 @@
 package com.example.usermanagementbackend.controller;
 
-
 import com.example.usermanagementbackend.entity.Produit;
+import com.example.usermanagementbackend.enums.TypeNotification;
+import com.example.usermanagementbackend.service.NotificationService;
 import com.example.usermanagementbackend.service.ProduitService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.ui.Model;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -17,16 +17,42 @@ import java.util.UUID;
 @RequestMapping("/api/produits")
 public class ProduitController {
 
-    @Autowired
-    private ProduitService produitService;
+    private final ProduitService produitService;
+    private final NotificationService notificationService;
 
-    @GetMapping("/")
-    public String index() {
-        return "index";
+    public ProduitController(ProduitService produitService, NotificationService notificationService) {
+        this.produitService = produitService;
+        this.notificationService = notificationService;
     }
 
-    @GetMapping("/liste")
-    public Page<Produit> liste(
+    @PostMapping
+    public ResponseEntity<Produit> addProduit(@RequestBody Produit produit) {
+        Produit savedProduit = produitService.creer(produit); // Triggers notification in ProduitServiceImpl
+        return ResponseEntity.ok(savedProduit);
+    }
+
+    @PostMapping(value = "/upload", consumes = "multipart/form-data")
+    public ResponseEntity<Produit> createProduitWithImage(
+            @RequestParam("nom") String nom,
+            @RequestParam("description") String description,
+            @RequestParam("prix") Double prix,
+            @RequestParam(value = "imageFile", required = false) MultipartFile imageFile
+    ) throws IOException {
+        Produit produit = new Produit();
+        produit.setNom(nom);
+        produit.setDescription(description);
+        produit.setPrix(prix);
+
+        if (imageFile != null && !imageFile.isEmpty()) {
+            produit.setImage(saveImage(imageFile));
+        }
+
+        Produit savedProduit = produitService.creer(produit); // Use creer
+        return ResponseEntity.ok(savedProduit);
+    }
+
+    @GetMapping
+    public Page<Produit> getProduits(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "4") int pageSize,
             @RequestParam(defaultValue = "id") String sortBy
@@ -34,63 +60,71 @@ public class ProduitController {
         return produitService.lireProduitsPagine(page, pageSize, sortBy);
     }
 
-    @GetMapping("/creation")
-    public String productCreate() {
-        return "create";
-    }
-
-    @GetMapping("/maj/{id}")
-    public String update(Model model, @PathVariable Integer id) {
+    @GetMapping("/{id}")
+    public ResponseEntity<Produit> getProduitById(@PathVariable Integer id) {
         Produit produit = produitService.trouverParId(id);
-        if (produit == null) return "error";
-        model.addAttribute("produit", produit);
-        return "update";
+        if (produit == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(produit);
     }
 
-    @PostMapping("/create")
-    public String creer(
-            @ModelAttribute Produit produit,
-            @RequestParam(value = "imageFile", required = false) MultipartFile imageFile // ← Optionnel
+    @PutMapping("/{id}")
+    public ResponseEntity<Produit> updateProduit(
+            @PathVariable Integer id,
+            @RequestParam("nom") String nom,
+            @RequestParam("description") String description,
+            @RequestParam("prix") Double prix,
+            @RequestParam(value = "imageFile", required = false) MultipartFile imageFile
     ) throws IOException {
-        if (imageFile != null && !imageFile.isEmpty()) {
-            produit.setImage(saveImage(imageFile));
+        Produit existingProduit = produitService.trouverParId(id);
+        if (existingProduit == null) {
+            return ResponseEntity.notFound().build();
         }
-        produitService.creer(produit);
-        return "redirect:/api/produits/liste";
-    }
 
-    @PostMapping("/update/{id}")
-    public String update(
-            @ModelAttribute Produit produit,
-            @RequestParam(value = "imageFile", required = false) MultipartFile imageFile // ← Optionnel
-    ) throws IOException {
+        existingProduit.setNom(nom);
+        existingProduit.setDescription(description);
+        existingProduit.setPrix(prix);
+
         if (imageFile != null && !imageFile.isEmpty()) {
-            deleteImage(produitService.trouverParId(produit.getId()).getImage());
-            produit.setImage(saveImage(imageFile));
+            if (existingProduit.getImage() != null) {
+                deleteImage(existingProduit.getImage());
+            }
+            existingProduit.setImage(saveImage(imageFile));
         }
-        produitService.modifier(produit.getId(), produit);
-        return "redirect:/api/produits/liste";
+
+        Produit updatedProduit = produitService.modifier(id, existingProduit);
+        return ResponseEntity.ok(updatedProduit);
     }
 
     @DeleteMapping("/{id}")
-    public boolean delete(@PathVariable Integer id) {
-        if (produitService.trouverParId(id) != null) {
-            produitService.supprimer(id);
-            return true;
+    public ResponseEntity<Void> deleteProduit(@PathVariable Integer id) {
+        Produit produit = produitService.trouverParId(id);
+        if (produit == null) {
+            return ResponseEntity.notFound().build();
         }
-        return false;
+        if (produit.getImage() != null) {
+            deleteImage(produit.getImage());
+        }
+        produitService.supprimer(id);
+        return ResponseEntity.noContent().build();
     }
 
     private String saveImage(MultipartFile imageFile) throws IOException {
         String fileName = UUID.randomUUID() + "_" + imageFile.getOriginalFilename();
         String filePath = System.getProperty("user.dir") + "/images/" + fileName;
+        File directory = new File(System.getProperty("user.dir") + "/images");
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
         imageFile.transferTo(new File(filePath));
         return fileName;
     }
 
     private void deleteImage(String imageName) {
         File file = new File(System.getProperty("user.dir") + "/images/" + imageName);
-        if (file.exists()) file.delete();
+        if (file.exists()) {
+            file.delete();
+        }
     }
 }
-

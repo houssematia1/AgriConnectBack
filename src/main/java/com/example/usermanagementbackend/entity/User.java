@@ -1,3 +1,4 @@
+
 package com.example.usermanagementbackend.entity;
 
 import jakarta.persistence.*;

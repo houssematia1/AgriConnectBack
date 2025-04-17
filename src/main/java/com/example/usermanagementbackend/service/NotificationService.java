@@ -1,9 +1,10 @@
 package com.example.usermanagementbackend.service;
 
-
 import com.example.usermanagementbackend.entity.Notification;
 import com.example.usermanagementbackend.enums.TypeNotification;
 import com.example.usermanagementbackend.repository.NotificationRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -12,17 +13,18 @@ import java.util.Date;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public NotificationService(NotificationRepository notificationRepository) {
+    @Autowired
+    public NotificationService(NotificationRepository notificationRepository, SimpMessagingTemplate messagingTemplate) {
         this.notificationRepository = notificationRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
-    // Récupérer une notification par ID
     public Notification getNotificationById(Long id) {
         return notificationRepository.findById(id).orElse(null);
     }
 
-    // Envoyer une notification
     public void sendNotification(Long destinataire, String message, TypeNotification type) {
         Notification notification = new Notification();
         notification.setDestinataire(destinataire);
@@ -32,7 +34,15 @@ public class NotificationService {
         notification.setLue(false);
 
         notificationRepository.save(notification);
+
+        if (destinataire != null) {
+            messagingTemplate.convertAndSend("/topic/notifications/" + destinataire, notification);
+        } else {
+            messagingTemplate.convertAndSend("/topic/notifications", notification);
+        }
     }
 
+    public void sendNotificationToAll(String message, TypeNotification type) {
+        sendNotification(null, message, type);
+    }
 }
-

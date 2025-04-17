@@ -1,109 +1,100 @@
 package com.example.usermanagementbackend.service;
 
-import com.example.usermanagementbackend.entity.Fidelite;
-import com.example.usermanagementbackend.entity.Produit;
-import com.example.usermanagementbackend.entity.Promotion;
-import com.example.usermanagementbackend.repository.FideliteRepository;
-import com.example.usermanagementbackend.repository.ProduitRepository;
-import com.example.usermanagementbackend.repository.PromotionRepository;
+import com.example.usermanagementbackend.entity.*;
+import com.example.usermanagementbackend.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
+
 @Service
-public class PromotionService  implements IPromotionService {
-    private PromotionRepository promotionRepository;  // Référencement du repository pour interagir avec la base de données
-    // Ajout de l'injection de dépendance pour ProduitRepository
-@Autowired
+public class PromotionService implements IPromotionService {
+
+    @Autowired
+    private PromotionRepository promotionRepository;
+
+    @Autowired
     private ProduitRepository produitRepository;
-@Autowired
+
+    @Autowired
     private FideliteRepository fideliteRepository;
+
+    @Autowired
+    private PromotionUsageRepository promotionUsageRepository;
 
     @Override
     public List<Promotion> getAllPromotions() {
         return promotionRepository.findAll();
-        // Récupère toutes les promotions stockées dans la base de données
     }
 
     @Override
     public Optional<Promotion> getPromotionById(Integer id) {
         return promotionRepository.findById(id);
-        // Recherche une promotion par son ID, retourne un Optional pour éviter les erreurs NullPointerException
     }
 
     @Override
     public Promotion createPromotion(Promotion promotion) {
         return promotionRepository.save(promotion);
-        // Enregistre une nouvelle promotion dans la base de données et la retourne
     }
 
     @Override
     public Promotion updatePromotion(Integer id, Promotion promotion) {
         return promotionRepository.findById(id).map(existingPromotion -> {
-            // Si l'ID de la promotion existe, on met à jour les champs
-
             existingPromotion.setNom(promotion.getNom());
-            // Met à jour le nom de la promotion
-
             existingPromotion.setPourcentageReduction(promotion.getPourcentageReduction());
-            // Met à jour le pourcentage de réduction
-
             existingPromotion.setDateDebut(promotion.getDateDebut());
-            // Met à jour la date de début
-
             existingPromotion.setDateFin(promotion.getDateFin());
-            // Met à jour la date de fin
-
+            existingPromotion.setConditionPromotion(promotion.getConditionPromotion());
             existingPromotion.setProduits(promotion.getProduits());
-            // Met à jour la liste des produits liés à la promotion
-
+            existingPromotion.setActive(promotion.isActive());
             return promotionRepository.save(existingPromotion);
-            // Sauvegarde et retourne la promotion mise à jour
         }).orElseThrow(() -> new RuntimeException("Promotion not found"));
-        // Si l'ID de la promotion n'existe pas, une exception est levée
     }
 
     @Override
     public void deletePromotion(Integer id) {
         promotionRepository.deleteById(id);
-        // Supprime une promotion de la base de données en fonction de son ID
     }
 
-
-    //Appliquer une promotion avec condition
     public double appliquerPromotion(double montantTotal, Promotion promotion) {
-        if (promotion == null || promotion.getConditionPromotion() == null) {
-            return montantTotal; // Aucune promotion à appliquer
+        if (promotion == null || promotion.getConditionPromotion() == null || !promotion.isActive()) {
+            return montantTotal;
         }
 
         String condition = promotion.getConditionPromotion();
         double reduction = promotion.getPourcentageReduction() / 100;
+        double montantApresReduction = montantTotal;
 
         if ("ACHAT_GROUPE".equals(condition) && montantTotal >= 3) {
-            return montantTotal * (1 - reduction);
+            montantApresReduction = montantTotal * (1 - reduction);
         } else if ("MONTANT_MIN".equals(condition) && montantTotal > 100) {
-            return montantTotal * (1 - reduction);
+            montantApresReduction = montantTotal * (1 - reduction);
         } else if ("EXPIRATION_PRODUIT".equals(condition)) {
-            return montantTotal * (1 - reduction); // Applique la réduction pour un produit proche de l'expiration
+            montantApresReduction = montantTotal * (1 - reduction);
         }
 
-        return montantTotal; // Pas de réduction applicable
+        // Track usage
+        PromotionUsage usage = new PromotionUsage();
+        usage.setPromotion(promotion);
+        usage.setMontantInitial(montantTotal);
+        usage.setMontantApresReduction(montantApresReduction);
+        usage.setDateApplication(new Date());
+        promotionUsageRepository.save(usage);
+
+        return montantApresReduction;
     }
 
-
-    //Désactiver une promotion lorsque sa date de fin est dépassée
-    @Scheduled(cron = "0 0 0 * * ?") // Exécution tous les jours à minuit
+    @Scheduled(cron = "0 0 0 * * ?")
     public void verifierPromotionsActives() {
         List<Promotion> promotions = promotionRepository.findAll();
-        LocalDate today = LocalDate.now();
+        Date today = new Date();
 
         for (Promotion promo : promotions) {
-            if (promo.getDateFin().isBefore(today)) {
+            if (promo.getDateFin() != null && promo.getDateFin().before(today)) {
                 promo.setActive(false);
                 promotionRepository.save(promo);
             }
@@ -114,13 +105,10 @@ public class PromotionService  implements IPromotionService {
         return promotionRepository.findByActiveTrue();
     }
 
-
-
-
-    //appliquerPromotionExpirationProduit
+    @Override
     public void appliquerPromotionExpirationProduit() {
         List<Produit> produits = produitRepository.findAll();
-        LocalDate today = LocalDate.now();
+        Date today = new Date();
 
         for (Produit produit : produits) {
             if (produit.getDateExpiration() != null) {
@@ -128,95 +116,158 @@ public class PromotionService  implements IPromotionService {
                         .toInstant()
                         .atZone(ZoneId.systemDefault())
                         .toLocalDate();
+                LocalDate todayLocal = today.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                long daysRemaining = java.time.temporal.ChronoUnit.DAYS.between(todayLocal, expirationDate);
 
-                long daysRemaining = ChronoUnit.DAYS.between(today, expirationDate);
-
-                if (daysRemaining <= 5) {
-                    Promotion promo = new Promotion();
-                    promo.setNom("Promotion Expiration Produit");
-                    promo.setPourcentageReduction(40);
-                    promo.setConditionPromotion("EXPIRATION_PRODUIT");
-                    promo.setDateDebut(today);
-                    promo.setDateFin(today.plusDays(5));
-
+                if (daysRemaining <= 5 && daysRemaining >= 0) {
+                    Optional<Promotion> existingPromo = promotionRepository.findByConditionPromotionAndActiveTrue("EXPIRATION_PRODUIT");
+                    Promotion promo;
+                    if (existingPromo.isPresent()) {
+                        promo = existingPromo.get();
+                    } else {
+                        promo = new Promotion();
+                        promo.setNom("Promotion Expiration Produit");
+                        promo.setPourcentageReduction(40);
+                        promo.setConditionPromotion("EXPIRATION_PRODUIT");
+                        promo.setDateDebut(today);
+                        LocalDate dateFinLocal = todayLocal.plusDays(5);
+                        promo.setDateFin(Date.from(dateFinLocal.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+                        promo.setActive(true);
+                        promo = promotionRepository.save(promo);
+                    }
                     appliquerPromotionSurProduit(produit, promo);
                 }
             }
         }
     }
 
-
-
-
-
-    private void appliquerPromotionSurProduit(Produit produit, Promotion promo) {
+    public void appliquerPromotionSurProduit(Produit produit, Promotion promo) {
         double newPrice = produit.getPrix() * (1 - promo.getPourcentageReduction() / 100);
         produit.setPrix(newPrice);
+        produit.getPromotions().add(promo);
         produitRepository.save(produit);
     }
 
-
-
-
-
-
-
-
-
-    //Promotion black friday sur tous les produits
-    @Scheduled(cron = "0 0 0 25 11 ?") // Exécution chaque année à la date du Black Friday
+    @Scheduled(cron = "0 0 0 25 11 ?")
     public void appliquerPromoBlackFriday() {
-        List<Produit> produits = produitRepository.findAll();
-        Promotion blackFridayPromo = promotionRepository.findByNom("Black Friday").stream().findFirst().orElse(null);
-
-        if (blackFridayPromo != null) {
-            for (Produit produit : produits) {
-                double prixAvecReduction = produit.getPrix() * (1 - blackFridayPromo.getPourcentageReduction() / 100);
-                produit.setPrix(prixAvecReduction);
-                produitRepository.save(produit);
+        Optional<Promotion> blackFridayPromoOpt = promotionRepository.findByNom("Black Friday");
+        if (blackFridayPromoOpt.isPresent()) {
+            Promotion blackFridayPromo = blackFridayPromoOpt.get();
+            if (blackFridayPromo.isActive()) {
+                List<Produit> produits = produitRepository.findAll();
+                for (Produit produit : produits) {
+                    if (produit.getPromotions().stream().noneMatch(p -> p.isActive() && !p.equals(blackFridayPromo))) {
+                        double prixAvecReduction = produit.getPrix() * (1 - blackFridayPromo.getPourcentageReduction() / 100);
+                        produit.setPrix(prixAvecReduction);
+                        produit.getPromotions().add(blackFridayPromo);
+                        produitRepository.save(produit);
+                    }
+                }
             }
         }
     }
-    //Desactiver la promotion de blackfriday
-    @Scheduled(cron = "0 0 0 28 11 ?") // Exécution le 28 novembre pour désactiver la promotion
+
+    @Scheduled(cron = "0 0 0 28 11 ?")
     public void desactiverPromoBlackFriday() {
-        Promotion blackFridayPromo = promotionRepository.findByNom("Black Friday").stream().findFirst().orElse(null);
+        Optional<Promotion> blackFridayPromoOpt = promotionRepository.findByNom("Black Friday");
+        blackFridayPromoOpt.ifPresent(promo -> {
+            promo.setActive(false);
+            promotionRepository.save(promo);
+        });
+    }
 
-        if (blackFridayPromo != null) {
-            blackFridayPromo.setActive(false);
-            promotionRepository.save(blackFridayPromo);
+    @Override
+    public void bulkActivate(List<Integer> ids) {
+        List<Promotion> promotions = promotionRepository.findAllById(ids);
+        for (Promotion promo : promotions) {
+            promo.setActive(true);
+            promotionRepository.save(promo);
         }
     }
 
-//Promotion pour les utilisateurs ayant des cartes des fidélités
+    @Override
+    public void bulkDeactivate(List<Integer> ids) {
+        List<Promotion> promotions = promotionRepository.findAllById(ids);
+        for (Promotion promo : promotions) {
+            promo.setActive(false);
+            promotionRepository.save(promo);
+        }
+    }
 
-    public double appliquerPromoFidelite(Integer utilisateurId, double montantTotal) {
-        // Recherche de la fidélité de l'utilisateur
-        Optional<Fidelite> fideliteOpt = fideliteRepository.findByUser_Id(utilisateurId);  // Rechercher par l'ID de l'utilisateur
+    @Override
+    public void bulkDelete(List<Integer> ids) {
+        promotionRepository.deleteAllById(ids);
+    }
 
-        // Vérifier si l'objet Fidelite est présent dans l'Optional
-        if (fideliteOpt.isPresent()) {
-            Fidelite fidelite = fideliteOpt.get();  // Récupérer la valeur contenue dans l'Optional
+    public Map<String, Object> getPromotionAnalytics() {
+        List<PromotionUsage> usageList = promotionUsageRepository.findAll();
+        Map<Integer, List<PromotionUsage>> usageByPromotion = usageList.stream()
+                .collect(Collectors.groupingBy(usage -> usage.getPromotion().getId()));
 
-            // Vérification du niveau de fidélité et application de la promotion
-            double reduction = 0.0;
+        Map<String, Object> analytics = new HashMap<>();
+        List<Map<String, Object>> promotionStats = new ArrayList<>();
 
-            // Appliquer la réduction en fonction du niveau de fidélité
-            if ("Or".equals(fidelite.getNiveau())) {
-                reduction = 0.30;  // 30% pour le niveau Or
-            } else if ("Argent".equals(fidelite.getNiveau())) {
-                reduction = 0.20;  // 20% pour le niveau Argent
-            } else if ("Bronze".equals(fidelite.getNiveau())) {
-                reduction = 0.10;  // 10% pour le niveau Bronze
+        for (Map.Entry<Integer, List<PromotionUsage>> entry : usageByPromotion.entrySet()) {
+            Integer promoId = entry.getKey();
+            List<PromotionUsage> usages = entry.getValue();
+            Promotion promo = promotionRepository.findById(promoId).orElse(null);
+            if (promo == null) continue;
+
+            double totalRevenueImpact = usages.stream()
+                    .mapToDouble(usage -> usage.getMontantInitial() - usage.getMontantApresReduction())
+                    .sum();
+            long usageCount = usages.size();
+
+            Map<String, Object> stat = new HashMap<>();
+            stat.put("promotionId", promoId);
+            stat.put("promotionName", promo.getNom());
+            stat.put("usageCount", usageCount);
+            stat.put("totalRevenueImpact", totalRevenueImpact);
+            promotionStats.add(stat);
+        }
+
+        analytics.put("promotionStats", promotionStats);
+        analytics.put("totalPromotionsApplied", usageList.size());
+        return analytics;
+    }
+
+    @Scheduled(cron = "0 0 0 * * ?")
+    public void suggestPromotions() {
+        List<Produit> produits = produitRepository.findAll();
+        Date today = new Date();
+
+        for (Produit produit : produits) {
+            Integer salesCount = produit.getSalesCount() != null ? produit.getSalesCount() : 0;
+            boolean lowSales = salesCount < 10;
+            boolean nearingExpiration = false;
+
+            if (produit.getDateExpiration() != null) {
+                LocalDate expirationDate = produit.getDateExpiration()
+                        .toInstant()
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate();
+                LocalDate todayLocal = today.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                long daysRemaining = java.time.temporal.ChronoUnit.DAYS.between(todayLocal, expirationDate);
+                nearingExpiration = daysRemaining <= 10 && daysRemaining >= 0;
             }
 
-            // Calcul du montant après réduction
-            double montantAvecReduction = montantTotal * (1 - reduction);
-            return montantAvecReduction;
-        } else {
-            // Retourner le montant sans réduction si la fidélité n'existe pas
-            return montantTotal;
+            if (lowSales || nearingExpiration) {
+                Optional<Promotion> existingPromo = promotionRepository.findByNom("AI Suggested Promotion for " + produit.getNom());
+                if (!existingPromo.isPresent()) {
+                    Promotion promo = new Promotion();
+                    promo.setNom("AI Suggested Promotion for " + produit.getNom());
+                    promo.setPourcentageReduction(nearingExpiration ? 50 : 30);
+                    promo.setConditionPromotion(nearingExpiration ? "EXPIRATION_PRODUIT" : "MONTANT_MIN");
+                    promo.setDateDebut(today);
+                    LocalDate dateFinLocal = today.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().plusDays(7);
+                    promo.setDateFin(Date.from(dateFinLocal.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+                    promo.setActive(true);
+                    List<Produit> produitsList = new ArrayList<>();
+                    produitsList.add(produit);
+                    promo.setProduits(produitsList);
+                    promotionRepository.save(promo);
+                }
+            }
         }
     }
-
 }

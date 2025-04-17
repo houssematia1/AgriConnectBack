@@ -37,6 +37,11 @@ public class FideliteService implements IFideliteService {
         fideliteRepository.deleteById(id);
     }
 
+    @Override
+    public void ajouterPointsFidelite(Integer utilisateurId, int points) {
+
+    }
+
     // Ajouter des points à un utilisateur
     @Override
     public void ajouterPoints(Integer userId, int points) {
@@ -56,8 +61,8 @@ public class FideliteService implements IFideliteService {
     }
 
     // Ajouter des points de fidélité lorsqu'un utilisateur effectue un achat
-    public void ajouterPointsFidelite(Integer utilisateurId, int points) {
-        Optional<Fidelite> fideliteOpt = fideliteRepository.findByUser_Id(utilisateurId);
+    public void ajouterPointsFidelite(Long utilisateurId, int points) {
+        Optional<Fidelite> fideliteOpt = fideliteRepository.findByUser_Id(Math.toIntExact(utilisateurId));
 
         if (fideliteOpt.isPresent()) {
             Fidelite fidelite = fideliteOpt.get();

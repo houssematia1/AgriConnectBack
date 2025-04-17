@@ -1,6 +1,5 @@
 package com.example.usermanagementbackend.service;
 
-
 import com.example.usermanagementbackend.entity.Produit;
 import com.example.usermanagementbackend.enums.TypeNotification;
 import com.example.usermanagementbackend.repository.ProduitRepository;
@@ -22,12 +21,9 @@ public class ProduitServiceImpl implements ProduitService {
     @Override
     public Produit creer(Produit produit) {
         Produit savedProduit = produitRepository.save(produit);
-
-        // Envoi de notification aux clients et associations pour les nouveaux produits
-        notificationService.sendNotification(null, // ID destinataire (null pour une notification générale)
-                "🚀 Nouveau produit disponible : " + produit.getNom(),
+        notificationService.sendNotification(null,
+                " Nouveau produit disponible : " + produit.getNom(),
                 TypeNotification.NOUVEAU_PRODUIT);
-
         return savedProduit;
     }
 
@@ -51,10 +47,7 @@ public class ProduitServiceImpl implements ProduitService {
                     p.setSeuilMin(produit.getSeuilMin());
                     p.setAutoReapprovisionnement(produit.isAutoReapprovisionnement());
                     p.setQuantiteReapprovisionnement(produit.getQuantiteReapprovisionnement());
-
-                    // Vérification du stock après modification
                     verifierStock(p);
-
                     return produitRepository.save(p);
                 }).orElseThrow(() -> new RuntimeException("❌ Produit non trouvé"));
     }
@@ -74,7 +67,6 @@ public class ProduitServiceImpl implements ProduitService {
     public Page<Produit> lireProduitsPagine(int numeroPage, int taillePage, String triPar) {
         Sort.Direction directionTri = Sort.Direction.ASC;
         String proprieteTri = "id";
-
         if (triPar != null && !triPar.isEmpty()) {
             if (triPar.startsWith("-")) {
                 directionTri = Sort.Direction.DESC;
@@ -83,7 +75,6 @@ public class ProduitServiceImpl implements ProduitService {
                 proprieteTri = triPar;
             }
         }
-
         return produitRepository.findAll(PageRequest.of(numeroPage, taillePage, directionTri, proprieteTri));
     }
 
@@ -108,28 +99,20 @@ public class ProduitServiceImpl implements ProduitService {
         }
     }
 
-    // 🚨 Vérification du stock et envoi d'alerte
     private void verifierStock(Produit produit) {
         if (produit.getStock() <= produit.getSeuilMin()) {
             if (produit.getFournisseurId() != null) {
-                // Alerte au fournisseur/agriculteur
                 notificationService.sendNotification(produit.getFournisseurId(),
                         "⚠️ Le stock du produit " + produit.getNom() + " est bas ! Pensez à réapprovisionner.",
                         TypeNotification.STOCK_BAS);
             }
-
-            // Alerte aux associations et clients
-            notificationService.sendNotification(null, // null or an ID for general notification
+            notificationService.sendNotification(null,
                     "📢 Promo spéciale : Le produit " + produit.getNom() + " est bientôt en rupture de stock. Profitez-en !",
                     TypeNotification.PRODUIT_RARE);
         }
-
-        // Réapprovisionnement automatique si activé
         if (produit.isAutoReapprovisionnement() && produit.getStock() <= produit.getSeuilMin()) {
             produit.setStock(produit.getStock() + produit.getQuantiteReapprovisionnement());
             produitRepository.save(produit);
-
-            // Confirmation de réapprovisionnement
             notificationService.sendNotification(produit.getFournisseurId(),
                     "🔄 Stock auto-réapprovisionné pour " + produit.getNom() + " (+"
                             + produit.getQuantiteReapprovisionnement() + " unités).",
@@ -137,4 +120,3 @@ public class ProduitServiceImpl implements ProduitService {
         }
     }
 }
-
