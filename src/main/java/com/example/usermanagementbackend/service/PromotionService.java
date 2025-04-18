@@ -38,22 +38,33 @@ public class PromotionService implements IPromotionService {
 
     @Override
     public Promotion createPromotion(Promotion promotion) {
+        if(promotion.getId() != null) {
+            throw new IllegalArgumentException("New promotion must not have an ID");
+        }
+        if(promotion.getDateDebut().after(promotion.getDateFin())) {
+            throw new IllegalArgumentException("End date must be after start date");
+        }
         return promotionRepository.save(promotion);
     }
 
     @Override
     public Promotion updatePromotion(Integer id, Promotion promotion) {
-        return promotionRepository.findById(id).map(existingPromotion -> {
-            existingPromotion.setNom(promotion.getNom());
-            existingPromotion.setPourcentageReduction(promotion.getPourcentageReduction());
-            existingPromotion.setDateDebut(promotion.getDateDebut());
-            existingPromotion.setDateFin(promotion.getDateFin());
-            existingPromotion.setConditionPromotion(promotion.getConditionPromotion());
-            existingPromotion.setProduits(promotion.getProduits());
-            existingPromotion.setActive(promotion.isActive());
-            return promotionRepository.save(existingPromotion);
+        return promotionRepository.findById(id).map(existing -> {
+            if(promotion.getDateDebut().after(promotion.getDateFin())) {
+                throw new IllegalArgumentException("End date must be after start date");
+            }
+
+            existing.setNom(promotion.getNom());
+            existing.setPourcentageReduction(promotion.getPourcentageReduction());
+            existing.setDateDebut(promotion.getDateDebut());
+            existing.setDateFin(promotion.getDateFin());
+            existing.setConditionPromotion(promotion.getConditionPromotion());
+            existing.setProduits(promotion.getProduits());
+            existing.setActive(promotion.isActive());
+            return promotionRepository.save(existing);
         }).orElseThrow(() -> new RuntimeException("Promotion not found"));
     }
+
 
     @Override
     public void deletePromotion(Integer id) {

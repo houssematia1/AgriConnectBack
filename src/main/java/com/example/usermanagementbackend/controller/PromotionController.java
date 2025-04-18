@@ -38,22 +38,31 @@ public class PromotionController {
 
     // Ajouter une nouvelle promotion
     @PostMapping("/add")
-    public ResponseEntity<Promotion> createPromotion(@RequestBody Promotion promotion) {
-        if (promotion == null || promotion.getNom() == null || promotion.getNom().trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(null);
+    public ResponseEntity<?> createPromotion(@RequestBody Promotion promotion) {
+        try {
+            // Validation supplémentaire
+            if (promotion.getDateDebut().after(promotion.getDateFin())) {
+                return ResponseEntity.badRequest().body("La date de fin doit être après la date de début");
+            }
+
+            promotion.setId(null); // Force la génération d'ID
+            return ResponseEntity.ok(promotionService.createPromotion(promotion));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
-        return ResponseEntity.ok(promotionService.createPromotion(promotion));
     }
+
 
     // Modifier une promotion
     @PutMapping("/{id}")
-    public ResponseEntity<Promotion> updatePromotion(@PathVariable Integer id, @RequestBody Promotion promotion) {
-        if (promotion == null || promotion.getNom() == null || promotion.getNom().trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(null);
+    public ResponseEntity<?> updatePromotion(@PathVariable Integer id, @RequestBody Promotion promotion) {
+        try {
+            return promotionService.getPromotionById(id)
+                    .map(existing -> ResponseEntity.ok(promotionService.updatePromotion(id, promotion)))
+                    .orElseGet(() -> ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
-        return promotionService.getPromotionById(id)
-                .map(existingPromotion -> ResponseEntity.ok(promotionService.updatePromotion(id, promotion)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     // Supprimer une promotion
