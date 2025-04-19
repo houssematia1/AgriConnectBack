@@ -21,6 +21,7 @@ public class GlobalCorsConfig {
                         .allowedHeaders("*")
                         .allowCredentials(false);        }
         };
+
     }
 
 }

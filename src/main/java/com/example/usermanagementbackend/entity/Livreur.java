@@ -26,11 +26,14 @@ public class Livreur {
 
     @Column(nullable = false)
     private String telephone;
+    private String photo;
 
 
+    @Column(name = "user_id")
+    private Long userId;
 
-    @OneToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @ManyToOne
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private User user;
 
     @OneToMany(mappedBy = "livreur", cascade = CascadeType.ALL, orphanRemoval = true)

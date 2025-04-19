@@ -6,23 +6,22 @@ import com.example.usermanagementbackend.entity.Livreur;
 public class LivreurMapper {
 
     public static LivreurDTO toDTO(Livreur livreur) {
-        if (livreur == null) return null;
-        return new LivreurDTO(
-                livreur.getId(),
-                livreur.getNom(),
-                livreur.getEmail(),
-                livreur.getTelephone(),
-                livreur.getUser() != null ? livreur.getUser().getId() : null
-        );
+        LivreurDTO dto = new LivreurDTO();
+        dto.setId(livreur.getId());
+        dto.setNom(livreur.getNom());
+        dto.setEmail(livreur.getEmail());
+        dto.setTelephone(livreur.getTelephone());
+        dto.setUserId(livreur.getUserId());
+        return dto;
     }
 
     public static Livreur toEntity(LivreurDTO dto) {
-        if (dto == null) return null;
         Livreur livreur = new Livreur();
         livreur.setId(dto.getId());
         livreur.setNom(dto.getNom());
         livreur.setEmail(dto.getEmail());
         livreur.setTelephone(dto.getTelephone());
+        livreur.setUserId(dto.getUserId());
         return livreur;
     }
 }

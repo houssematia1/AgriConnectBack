@@ -16,16 +16,21 @@ public class LivraisonMapper {
         livraison.setTypeLivraison(dto.getTypeLivraison());
         livraison.setPhoto(dto.getPhoto());
         livraison.setReason(dto.getReason());
+        livraison.setCommandeId(dto.getCommandeId());
 
-        Livreur livreur = new Livreur();
-        livreur.setId(dto.getLivreur().getId());
-        livreur.setNom(dto.getLivreur().getNom());
-        livreur.setEmail(dto.getLivreur().getEmail());
-        livreur.setTelephone(dto.getLivreur().getTelephone());
-        User user = new User();
-        user.setId(dto.getLivreur().getUserId());
-        livreur.setUser(user);
-        livraison.setLivreur(livreur);
+        if (dto.getLivreur() != null) {
+            Livreur livreur = new Livreur();
+            livreur.setId(dto.getLivreur().getId());
+            livreur.setNom(dto.getLivreur().getNom());
+            livreur.setEmail(dto.getLivreur().getEmail());
+            livreur.setTelephone(dto.getLivreur().getTelephone());
+            if (dto.getLivreur().getUserId() != null) {
+                User user = new User();
+                user.setId(dto.getLivreur().getUserId());
+                livreur.setUser(user);
+            }
+            livraison.setLivreur(livreur);
+        }
 
         return livraison;
     }
@@ -38,14 +43,21 @@ public class LivraisonMapper {
         dto.setTypeLivraison(livraison.getTypeLivraison());
         dto.setPhoto(livraison.getPhoto());
         dto.setReason(livraison.getReason());
+        dto.setCommandeId(livraison.getCommandeId());
+        dto.setCreatedAt(livraison.getCreatedAt());
+        dto.setUpdatedAt(livraison.getUpdatedAt());
 
-        LivreurDTO livreurDTO = new LivreurDTO();
-        livreurDTO.setId(livraison.getLivreur().getId());
-        livreurDTO.setNom(livraison.getLivreur().getNom());
-        livreurDTO.setEmail(livraison.getLivreur().getEmail());
-        livreurDTO.setTelephone(livraison.getLivreur().getTelephone());
-        livreurDTO.setUserId(livraison.getLivreur().getUser().getId());
-        dto.setLivreur(livreurDTO);
+        if (livraison.getLivreur() != null) {
+            LivreurDTO livreurDTO = new LivreurDTO();
+            livreurDTO.setId(livraison.getLivreur().getId());
+            livreurDTO.setNom(livraison.getLivreur().getNom());
+            livreurDTO.setEmail(livraison.getLivreur().getEmail());
+            livreurDTO.setTelephone(livraison.getLivreur().getTelephone());
+            if (livraison.getLivreur().getUser() != null) {
+                livreurDTO.setUserId(livraison.getLivreur().getUser().getId());
+            }
+            dto.setLivreur(livreurDTO);
+        }
 
         return dto;
     }

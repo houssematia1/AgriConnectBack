@@ -22,7 +22,30 @@ public class LivraisonController {
 
     @PostMapping("/create")
     public ResponseEntity<LivraisonDTO> createLivraison(@RequestBody LivraisonDTO livraisonDTO) {
-        System.out.println("Requête reçue : " + livraisonDTO);
+        System.out.println("=== Creating Livraison ===");
+        System.out.println("Livraison DTO: " + livraisonDTO);
+
+        if (livraisonDTO == null) {
+            System.out.println("Request rejected: livraisonDTO is null");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+
+        if (livraisonDTO.getLivreur() == null) {
+            System.out.println("Request rejected: livreur is null");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+
+        if (livraisonDTO.getLivreur().getEmail() == null) {
+            System.out.println("Request rejected: livreur email is null");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+
+        if (livraisonDTO.getCommandeId() == null) {
+            System.out.println("Request rejected: commandeId is null");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+
+        System.out.println("Request validated, creating livraison");
         LivraisonDTO createdLivraison = livraisonService.addLivraison(livraisonDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdLivraison);
     }

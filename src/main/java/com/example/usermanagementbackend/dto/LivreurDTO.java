@@ -1,16 +1,12 @@
 package com.example.usermanagementbackend.dto;
 
-import lombok.*;
+import lombok.Data;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@ToString
+@Data
 public class LivreurDTO {
     private Long id;
     private String nom;
     private String email;
     private String telephone;
-    private Long userId; // Note: This is a Long, not a User object
+    private Long userId;
 }

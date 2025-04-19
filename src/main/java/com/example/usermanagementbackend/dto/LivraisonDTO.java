@@ -3,6 +3,7 @@ package com.example.usermanagementbackend.dto;
 import com.example.usermanagementbackend.entity.StatusLivraison;
 import com.example.usermanagementbackend.entity.TypeLivraison;
 import lombok.Data;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -13,6 +14,7 @@ public class LivraisonDTO {
     private StatusLivraison statusLivraison;
     private TypeLivraison typeLivraison;
     private LivreurDTO livreur;
+    private Long commandeId;
     private String photo;
     private String reason;
     private LocalDateTime createdAt;
