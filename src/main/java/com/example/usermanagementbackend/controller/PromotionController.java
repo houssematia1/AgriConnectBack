@@ -1,34 +1,41 @@
 package com.example.usermanagementbackend.controller;
 
+import com.example.usermanagementbackend.entity.Produit;
 import com.example.usermanagementbackend.entity.Promotion;
+import com.example.usermanagementbackend.repository.ProduitRepository;
 import com.example.usermanagementbackend.service.PromotionService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/promotions")
-@CrossOrigin(origins = "http://localhost:4200") // Allow requests from the Angular frontend
+@CrossOrigin(origins = "http://localhost:4200")
 public class PromotionController {
 
     private final PromotionService promotionService;
+    private final ObjectMapper objectMapper;
+    private final ProduitRepository produitRepository;
 
-    @Autowired
-    public PromotionController(PromotionService promotionService) {
+    // @Autowired retiré car inutile (injection automatique par Spring)
+    public PromotionController(PromotionService promotionService, ObjectMapper objectMapper, ProduitRepository produitRepository) {
         this.promotionService = promotionService;
+        this.objectMapper = objectMapper;
+        this.produitRepository = produitRepository;
     }
 
-    // Récupérer toutes les promotions
     @GetMapping
     public ResponseEntity<List<Promotion>> getAllPromotions() {
         return ResponseEntity.ok(promotionService.getAllPromotions());
     }
 
-    // Récupérer une promotion par son ID
     @GetMapping("/{id}")
     public ResponseEntity<Promotion> getPromotionById(@PathVariable Integer id) {
         return promotionService.getPromotionById(id)
@@ -36,36 +43,70 @@ public class PromotionController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // Ajouter une nouvelle promotion
-    @PostMapping("/add")
+    @PostMapping(value = "/add", consumes = "application/json")
     public ResponseEntity<?> createPromotion(@RequestBody Promotion promotion) {
         try {
-            // Validation supplémentaire
-            if (promotion.getDateDebut().after(promotion.getDateFin())) {
-                return ResponseEntity.badRequest().body("La date de fin doit être après la date de début");
+            // Convertir produitIds en liste de Produit
+            if (promotion.getProduitIds() != null && !promotion.getProduitIds().isEmpty()) {
+                // Utiliser l'instance produitRepository au lieu de ProduitRepository
+                List<Produit> produits = produitRepository.findAllById(promotion.getProduitIds());
+                if (produits.size() != promotion.getProduitIds().size()) {
+                    throw new IllegalArgumentException("Certains produits n'ont pas été trouvés");
+                }
+                promotion.setProduits(produits);
+            } else {
+                promotion.setProduits(new ArrayList<>());
             }
 
-            promotion.setId(null); // Force la génération d'ID
-            return ResponseEntity.ok(promotionService.createPromotion(promotion));
+            Promotion createdPromotion = promotionService.createPromotion(promotion);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdPromotion);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
 
-
-    // Modifier une promotion
     @PutMapping("/{id}")
     public ResponseEntity<?> updatePromotion(@PathVariable Integer id, @RequestBody Promotion promotion) {
         try {
             return promotionService.getPromotionById(id)
-                    .map(existing -> ResponseEntity.ok(promotionService.updatePromotion(id, promotion)))
+                    .map(existing -> {
+                        existing.setNom(promotion.getNom());
+                        existing.setPourcentageReduction(promotion.getPourcentageReduction());
+                        existing.setDateDebut(promotion.getDateDebut());
+                        existing.setDateFin(promotion.getDateFin());
+                        existing.setConditionPromotion(promotion.getConditionPromotion());
+                        existing.setActive(promotion.isActive());
+                        return ResponseEntity.ok(promotionService.updatePromotion(id, existing));
+                    })
                     .orElseGet(() -> ResponseEntity.notFound().build());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    // Supprimer une promotion
+    @PutMapping(value = "/{id}/toggle-active", consumes = "application/json")
+    public ResponseEntity<?> toggleActiveStatus(@PathVariable Integer id, @RequestBody String rawBody) {
+        System.out.println("Received toggle-active request for ID: " + id);
+        System.out.println("Raw request body: " + rawBody);
+        try {
+            Map<String, Boolean> request = objectMapper.readValue(rawBody, Map.class);
+            System.out.println("Parsed request body: " + request);
+            if (request == null || !request.containsKey("active")) {
+                return ResponseEntity.badRequest().body("Field 'active' is required in the request body");
+            }
+            Boolean active = request.get("active");
+            if (active == null) {
+                return ResponseEntity.badRequest().body("Field 'active' must be a boolean value");
+            }
+            Promotion updated = promotionService.toggleActiveStatus(id, active);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            System.out.println("Error in toggleActiveStatus: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Error processing request: " + e.getMessage());
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePromotion(@PathVariable Integer id) {
         if (promotionService.getPromotionById(id).isPresent()) {
@@ -75,7 +116,6 @@ public class PromotionController {
         return ResponseEntity.notFound().build();
     }
 
-    // Appliquer une promotion seulement si certaines conditions sont remplies
     @GetMapping("/appliquer/{id}/{montant}")
     public ResponseEntity<Double> appliquerPromotion(@PathVariable Integer id, @PathVariable double montant) {
         if (montant <= 0) {
@@ -86,10 +126,9 @@ public class PromotionController {
             double nouveauMontant = promotionService.appliquerPromotion(montant, promo.get());
             return ResponseEntity.ok(nouveauMontant);
         }
-        return ResponseEntity.badRequest().body(montant); // Retourne le montant inchangé si la promo est expirée
+        return ResponseEntity.badRequest().body(montant);
     }
 
-    // Récupérer les promotions actives
     @GetMapping("/actives")
     public ResponseEntity<List<Promotion>> getPromotionsActives() {
         return ResponseEntity.ok(promotionService.getPromotionsActives());
@@ -101,13 +140,18 @@ public class PromotionController {
         return ResponseEntity.ok("Promotion appliquée aux produits expirant sous 5 jours.");
     }
 
-    // Bulk action endpoints (fixed method names)
+    @GetMapping("/produits-proches-expiration")
+    public ResponseEntity<List<Produit>> getProduitsProchesExpiration() {
+        List<Produit> produits = promotionService.getProduitsProchesExpiration();
+        return ResponseEntity.ok(produits);
+    }
+
     @PostMapping("/bulk-activate")
     public ResponseEntity<Void> bulkActivate(@RequestBody List<Integer> ids) {
         if (ids == null || ids.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
-        promotionService.bulkActivate(ids); // Fixed method name
+        promotionService.bulkActivate(ids);
         return ResponseEntity.ok().build();
     }
 
@@ -116,7 +160,7 @@ public class PromotionController {
         if (ids == null || ids.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
-        promotionService.bulkDeactivate(ids); // Fixed method name
+        promotionService.bulkDeactivate(ids);
         return ResponseEntity.ok().build();
     }
 
@@ -125,11 +169,10 @@ public class PromotionController {
         if (ids == null || ids.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
-        promotionService.bulkDelete(ids); // Fixed method name
+        promotionService.bulkDelete(ids);
         return ResponseEntity.ok().build();
     }
 
-    // New endpoint for analytics
     @GetMapping("/analytics")
     public ResponseEntity<Map<String, Object>> getPromotionAnalytics() {
         Map<String, Object> analytics = promotionService.getPromotionAnalytics();
@@ -137,5 +180,19 @@ public class PromotionController {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.ok(analytics);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<String> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        System.out.println("Media type not supported: " + ex.getContentType());
+        System.out.println("Supported media types: " + ex.getSupportedMediaTypes());
+        ex.printStackTrace();
+        return ResponseEntity.status(415).body("Unsupported media type: " + ex.getContentType());
+    }
+
+    @GetMapping("/dynamic")
+    public ResponseEntity<Map<String, List<Map<String, Object>>>> getDynamicPromotions() {
+        Map<String, List<Map<String, Object>>> dynamicPromotions = promotionService.getDynamicPromotions();
+        return ResponseEntity.ok(dynamicPromotions);
     }
 }

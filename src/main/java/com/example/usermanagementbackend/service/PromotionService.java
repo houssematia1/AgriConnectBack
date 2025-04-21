@@ -2,9 +2,13 @@ package com.example.usermanagementbackend.service;
 
 import com.example.usermanagementbackend.entity.*;
 import com.example.usermanagementbackend.repository.*;
+import org.hibernate.Hibernate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -13,6 +17,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class PromotionService implements IPromotionService {
+    private static final Logger logger = LoggerFactory.getLogger(PromotionService.class);
 
     @Autowired
     private PromotionRepository promotionRepository;
@@ -28,29 +33,65 @@ public class PromotionService implements IPromotionService {
 
     @Override
     public List<Promotion> getAllPromotions() {
-        return promotionRepository.findAll();
+        List<Promotion> promotions = promotionRepository.findAll();
+        promotions.forEach(promotion -> {
+            Hibernate.initialize(promotion.getProduits());
+            System.out.println("Promotion " + promotion.getId() + " - Produits : " + promotion.getProduits());
+        });
+        return promotions;
     }
 
     @Override
     public Optional<Promotion> getPromotionById(Integer id) {
-        return promotionRepository.findById(id);
+        Optional<Promotion> promotion = promotionRepository.findById(id);
+        promotion.ifPresent(p -> Hibernate.initialize(p.getProduits()));
+        return promotion;
     }
 
     @Override
+    @Transactional
     public Promotion createPromotion(Promotion promotion) {
-        if(promotion.getId() != null) {
+        if (promotion.getId() != null) {
             throw new IllegalArgumentException("New promotion must not have an ID");
         }
-        if(promotion.getDateDebut().after(promotion.getDateFin())) {
+        if (promotion.getDateDebut() == null || promotion.getDateFin() == null) {
+            throw new IllegalArgumentException("Start date and end date must not be null");
+        }
+        if (promotion.getDateDebut().after(promotion.getDateFin())) {
             throw new IllegalArgumentException("End date must be after start date");
         }
-        return promotionRepository.save(promotion);
+
+        if (promotion.getProduits() == null) {
+            promotion.setProduits(new ArrayList<>());
+        }
+
+        System.out.println("Produits associés à la promotion avant sauvegarde : " + promotion.getProduits());
+
+        for (Produit produit : promotion.getProduits()) {
+            if (produit.getPromotions() == null) {
+                produit.setPromotions(new ArrayList<>());
+            }
+            if (!produit.getPromotions().contains(promotion)) {
+                produit.getPromotions().add(promotion);
+            }
+        }
+
+        Promotion savedPromotion = promotionRepository.save(promotion);
+        produitRepository.saveAll(promotion.getProduits());
+
+        Hibernate.initialize(savedPromotion.getProduits());
+
+        System.out.println("Promotion sauvegardée : " + savedPromotion);
+        System.out.println("Produits associés à la promotion sauvegardée : " + savedPromotion.getProduits());
+
+        return savedPromotion;
     }
 
     @Override
+    @Transactional
     public Promotion updatePromotion(Integer id, Promotion promotion) {
         return promotionRepository.findById(id).map(existing -> {
-            if(promotion.getDateDebut().after(promotion.getDateFin())) {
+            if (promotion.getDateDebut().after(promotion.getDateFin())) {
                 throw new IllegalArgumentException("End date must be after start date");
             }
 
@@ -61,10 +102,33 @@ public class PromotionService implements IPromotionService {
             existing.setConditionPromotion(promotion.getConditionPromotion());
             existing.setProduits(promotion.getProduits());
             existing.setActive(promotion.isActive());
-            return promotionRepository.save(existing);
+
+            if (existing.getProduits() != null) {
+                for (Produit produit : existing.getProduits()) {
+                    if (produit.getPromotions() == null) {
+                        produit.setPromotions(new ArrayList<>());
+                    }
+                    if (!produit.getPromotions().contains(existing)) {
+                        produit.getPromotions().add(existing);
+                    }
+                }
+                produitRepository.saveAll(existing.getProduits());
+            }
+
+            Promotion updatedPromotion = promotionRepository.save(existing);
+            Hibernate.initialize(updatedPromotion.getProduits());
+            return updatedPromotion;
         }).orElseThrow(() -> new RuntimeException("Promotion not found"));
     }
 
+    public Promotion toggleActiveStatus(Integer id, boolean active) {
+        return promotionRepository.findById(id).map(existing -> {
+            existing.setActive(active);
+            Promotion updatedPromotion = promotionRepository.save(existing);
+            Hibernate.initialize(updatedPromotion.getProduits());
+            return updatedPromotion;
+        }).orElseThrow(() -> new RuntimeException("Promotion not found"));
+    }
 
     @Override
     public void deletePromotion(Integer id) {
@@ -88,7 +152,6 @@ public class PromotionService implements IPromotionService {
             montantApresReduction = montantTotal * (1 - reduction);
         }
 
-        // Track usage
         PromotionUsage usage = new PromotionUsage();
         usage.setPromotion(promotion);
         usage.setMontantInitial(montantTotal);
@@ -113,7 +176,9 @@ public class PromotionService implements IPromotionService {
     }
 
     public List<Promotion> getPromotionsActives() {
-        return promotionRepository.findByActiveTrue();
+        List<Promotion> promotions = promotionRepository.findByActiveTrue();
+        promotions.forEach(promotion -> Hibernate.initialize(promotion.getProduits()));
+        return promotions;
     }
 
     @Override
@@ -123,10 +188,11 @@ public class PromotionService implements IPromotionService {
 
         for (Produit produit : produits) {
             if (produit.getDateExpiration() != null) {
-                LocalDate expirationDate = produit.getDateExpiration()
-                        .toInstant()
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDate();
+                LocalDate expirationDate = LocalDate.of(
+                        produit.getDateExpiration().getYear() + 1900,
+                        produit.getDateExpiration().getMonth() + 1,
+                        produit.getDateExpiration().getDate()
+                );
                 LocalDate todayLocal = today.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
                 long daysRemaining = java.time.temporal.ChronoUnit.DAYS.between(todayLocal, expirationDate);
 
@@ -153,10 +219,22 @@ public class PromotionService implements IPromotionService {
     }
 
     public void appliquerPromotionSurProduit(Produit produit, Promotion promo) {
-        double newPrice = produit.getPrix() * (1 - promo.getPourcentageReduction() / 100);
-        produit.setPrix(newPrice);
-        produit.getPromotions().add(promo);
-        produitRepository.save(produit);
+        if (!produit.getPromotions().contains(promo)) {
+            double prixInitial = produit.getPrix();
+            double newPrice = prixInitial * (1 - promo.getPourcentageReduction() / 100);
+            produit.setPrix(newPrice);
+
+            produit.getPromotions().add(promo);
+            promo.getProduits().add(produit);
+
+            produitRepository.save(produit);
+            promotionRepository.save(promo);
+
+            System.out.println("Produit: " + produit.getNom() + ", Prix initial: " + prixInitial + ", Prix réduit: " + newPrice);
+            System.out.println("Promotion " + promo.getNom() + " appliquée au produit: " + produit.getNom());
+        } else {
+            System.out.println("Produit: " + produit.getNom() + " a déjà la promotion: " + promo.getNom());
+        }
     }
 
     @Scheduled(cron = "0 0 0 25 11 ?")
@@ -209,20 +287,33 @@ public class PromotionService implements IPromotionService {
     public void bulkDelete(List<Integer> ids) {
         promotionRepository.deleteAllById(ids);
     }
-
     public Map<String, Object> getPromotionAnalytics() {
+        // Récupérer toutes les utilisations de promotions
         List<PromotionUsage> usageList = promotionUsageRepository.findAll();
+        logger.info("Nombre d'entrées dans promotion_usage: {}", usageList.size());
         Map<Integer, List<PromotionUsage>> usageByPromotion = usageList.stream()
                 .collect(Collectors.groupingBy(usage -> usage.getPromotion().getId()));
+        logger.info("Promotions avec utilisations (usageByPromotion): {}", usageByPromotion.keySet());
+
+        // Récupérer toutes les promotions actives
+        List<Promotion> activePromotions = promotionRepository.findByActiveTrue();
+        logger.info("Nombre de promotions actives: {}", activePromotions.size());
+        activePromotions.forEach(promo ->
+                logger.info("Promotion active - ID: {}, Nom: {}, Active: {}", promo.getId(), promo.getNom(), promo.isActive())
+        );
 
         Map<String, Object> analytics = new HashMap<>();
         List<Map<String, Object>> promotionStats = new ArrayList<>();
 
+        // Ajouter les statistiques pour les promotions qui ont été appliquées
         for (Map.Entry<Integer, List<PromotionUsage>> entry : usageByPromotion.entrySet()) {
             Integer promoId = entry.getKey();
             List<PromotionUsage> usages = entry.getValue();
             Promotion promo = promotionRepository.findById(promoId).orElse(null);
-            if (promo == null) continue;
+            if (promo == null) {
+                logger.warn("Promotion avec ID {} introuvable", promoId);
+                continue;
+            }
 
             double totalRevenueImpact = usages.stream()
                     .mapToDouble(usage -> usage.getMontantInitial() - usage.getMontantApresReduction())
@@ -235,12 +326,34 @@ public class PromotionService implements IPromotionService {
             stat.put("usageCount", usageCount);
             stat.put("totalRevenueImpact", totalRevenueImpact);
             promotionStats.add(stat);
+            logger.info("Stat ajoutée pour la promotion {}: usageCount={}, totalRevenueImpact={}",
+                    promo.getNom(), usageCount, totalRevenueImpact);
+        }
+
+        // Ajouter les promotions actives qui n'ont pas encore été appliquées
+        for (Promotion promo : activePromotions) {
+            // Vérifier si la promotion est déjà dans les statistiques
+            boolean alreadyIncluded = promotionStats.stream()
+                    .anyMatch(stat -> stat.get("promotionId").equals(promo.getId()));
+
+            if (!alreadyIncluded) {
+                Map<String, Object> stat = new HashMap<>();
+                stat.put("promotionId", promo.getId());
+                stat.put("promotionName", promo.getNom());
+                stat.put("usageCount", 0L); // Pas encore appliquée
+                stat.put("totalRevenueImpact", 0.0);
+                promotionStats.add(stat);
+                logger.info("Promotion active mais non appliquée ajoutée - Nom: {}, ID: {}",
+                        promo.getNom(), promo.getId());
+            }
         }
 
         analytics.put("promotionStats", promotionStats);
         analytics.put("totalPromotionsApplied", usageList.size());
+        logger.info("Réponse finale: {}", analytics);
         return analytics;
     }
+
 
     @Scheduled(cron = "0 0 0 * * ?")
     public void suggestPromotions() {
@@ -253,10 +366,11 @@ public class PromotionService implements IPromotionService {
             boolean nearingExpiration = false;
 
             if (produit.getDateExpiration() != null) {
-                LocalDate expirationDate = produit.getDateExpiration()
-                        .toInstant()
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDate();
+                LocalDate expirationDate = LocalDate.of(
+                        produit.getDateExpiration().getYear() + 1900,
+                        produit.getDateExpiration().getMonth() + 1,
+                        produit.getDateExpiration().getDate()
+                );
                 LocalDate todayLocal = today.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
                 long daysRemaining = java.time.temporal.ChronoUnit.DAYS.between(todayLocal, expirationDate);
                 nearingExpiration = daysRemaining <= 10 && daysRemaining >= 0;
@@ -280,5 +394,86 @@ public class PromotionService implements IPromotionService {
                 }
             }
         }
+    }
+
+    @Override
+    public List<Produit> getProduitsProchesExpiration() {
+        Date today = new Date();
+        LocalDate todayLocal = today.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate endDateLocal = todayLocal.plusDays(5);
+        Date endDate = Date.from(endDateLocal.atStartOfDay(ZoneId.systemDefault()).toInstant());
+
+        List<Produit> produitsProchesExpiration = produitRepository.findProduitsProchesExpiration(today, endDate);
+        return produitsProchesExpiration;
+    }
+
+    @Override
+    public Map<String, List<Map<String, Object>>> getDynamicPromotions() {
+        Map<String, List<Map<String, Object>>> dynamicPromotions = new HashMap<>();
+
+        // Récupérer la promotion Black Friday
+        List<Map<String, Object>> blackFridayPromotions = new ArrayList<>();
+        Optional<Promotion> blackFridayPromoOpt = promotionRepository.findByNom("Black Friday");
+        blackFridayPromoOpt.ifPresent(promo -> {
+            Hibernate.initialize(promo.getProduits());
+            Map<String, Object> promoMap = new HashMap<>();
+            promoMap.put("id", promo.getId());
+            promoMap.put("nom", promo.getNom());
+            promoMap.put("pourcentage_reduction", promo.getPourcentageReduction());
+            promoMap.put("date_debut", promo.getDateDebut());
+            promoMap.put("date_fin", promo.getDateFin());
+            promoMap.put("condition_promotion", promo.getConditionPromotion());
+            promoMap.put("active", promo.isActive());
+            promoMap.put("produits", promo.getProduits());
+
+            // Ajouter la date d'activation prévue si la promotion n'est pas active
+            if (!promo.isActive()) {
+                LocalDate scheduledDate = LocalDate.of(LocalDate.now().getYear(), 11, 25);
+                promoMap.put("date_activation_prevue", scheduledDate.toString());
+            }
+
+            blackFridayPromotions.add(promoMap);
+        });
+
+        // Si aucune promotion Black Friday n'existe, créer une entrée avec la date prévue
+        if (blackFridayPromotions.isEmpty()) {
+            Map<String, Object> placeholderPromo = new HashMap<>();
+            placeholderPromo.put("nom", "Black Friday");
+            placeholderPromo.put("pourcentage_reduction", 50.0);
+            placeholderPromo.put("condition_promotion", "BLACK_FRIDAY");
+            placeholderPromo.put("active", false);
+            placeholderPromo.put("produits", new ArrayList<>());
+
+            // Définir la date d'activation prévue (25 novembre de l'année en cours)
+            LocalDate scheduledDate = LocalDate.of(LocalDate.now().getYear(), 11, 25);
+            placeholderPromo.put("date_debut", Date.from(scheduledDate.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            placeholderPromo.put("date_fin", Date.from(scheduledDate.plusDays(3).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            placeholderPromo.put("date_activation_prevue", scheduledDate.toString());
+
+            blackFridayPromotions.add(placeholderPromo);
+        }
+
+        // Récupérer la promotion pour produits proches de l'expiration
+        List<Map<String, Object>> expirationPromotions = new ArrayList<>();
+        Optional<Promotion> expirationPromoOpt = promotionRepository.findByConditionPromotionAndActiveTrue("EXPIRATION_PRODUIT");
+        expirationPromoOpt.ifPresent(promo -> {
+            Hibernate.initialize(promo.getProduits());
+            Map<String, Object> promoMap = new HashMap<>();
+            promoMap.put("id", promo.getId());
+            promoMap.put("nom", promo.getNom());
+            promoMap.put("pourcentage_reduction", promo.getPourcentageReduction());
+            promoMap.put("date_debut", promo.getDateDebut());
+            promoMap.put("date_fin", promo.getDateFin());
+            promoMap.put("condition_promotion", promo.getConditionPromotion());
+            promoMap.put("active", promo.isActive());
+            promoMap.put("produits", promo.getProduits());
+            expirationPromotions.add(promoMap);
+        });
+
+        // Structurer les résultats
+        dynamicPromotions.put("blackFriday", blackFridayPromotions);
+        dynamicPromotions.put("expiration", expirationPromotions);
+
+        return dynamicPromotions;
     }
 }

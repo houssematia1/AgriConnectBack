@@ -1,5 +1,6 @@
 package com.example.usermanagementbackend.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -24,39 +25,34 @@ public class Produit {
     private Integer id;
 
     private String description;
-
     private String nom;
-
     private double prix;
 
     @Column(length = 3)
-    private String devise; // EUR, USD, etc.
+    private String devise;
 
-    private Integer taxe; // Pourcentage de taxe appliqué
+    private Integer taxe;
 
     @Temporal(TemporalType.DATE)
     @DateTimeFormat(pattern = "yyyy-MM-dd")
     @Column(name = "date_expiration")
     private Date dateExpiration;
 
-    private String fournisseur; // Nom du fournisseur
+    private String fournisseur;
 
     @Column(name = "fournisseur_id")
-    private Long fournisseurId; // Lien vers l'agriculteur
+    private Long fournisseurId;
 
-    private String image; // Image du produit
-
-    private int stock; // Quantité en stock
-
-    private int seuilMin; // Seuil minimal pour alerte
-
-    private boolean autoReapprovisionnement; // Activer/Désactiver auto-réappro
-
-    private int quantiteReapprovisionnement; // Quantité pour auto-réappro
+    private String image;
+    private int stock;
+    private int seuilMin;
+    private boolean autoReapprovisionnement;
+    private int quantiteReapprovisionnement;
 
     @Column(name = "sales_count")
-    private Integer salesCount = 0; // New field to track sales count, initialized to 0
+    private Integer salesCount = 0;
 
     @ManyToMany(mappedBy = "produits")
+    @JsonBackReference
     private List<Promotion> promotions = new ArrayList<>();
 }

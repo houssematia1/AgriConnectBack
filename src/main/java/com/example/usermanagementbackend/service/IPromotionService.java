@@ -1,8 +1,10 @@
 package com.example.usermanagementbackend.service;
 
+import com.example.usermanagementbackend.entity.Produit;
 import com.example.usermanagementbackend.entity.Promotion;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface IPromotionService {
@@ -15,4 +17,7 @@ public interface IPromotionService {
     void bulkActivate(List<Integer> ids);
     void bulkDeactivate(List<Integer> ids);
     void bulkDelete(List<Integer> ids);
+    List<Produit> getProduitsProchesExpiration();
+    // Nouvelle méthode pour récupérer les promotions dynamiques
+    Map<String, List<Map<String, Object>>> getDynamicPromotions();
 }
