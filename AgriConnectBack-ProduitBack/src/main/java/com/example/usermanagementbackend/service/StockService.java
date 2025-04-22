@@ -1,6 +1,5 @@
 package com.example.usermanagementbackend.service;
 
-
 import com.example.usermanagementbackend.entity.MouvementStock;
 import com.example.usermanagementbackend.entity.Produit;
 import com.example.usermanagementbackend.enums.TypeMouvement;
@@ -30,14 +29,17 @@ public class StockService {
         mouvementStockRepository.save(mouvement);
     }
 
-    // Vérification et réapprovisionnement automatique
     public void verifierEtReapprovisionner(Produit produit) {
+        // Vérifier que le produit a un ID
+        if (produit.getId() == null) {
+            throw new IllegalStateException("Le produit doit être persistant avant de créer des mouvements de stock");
+        }
+
         if (produit.isAutoReapprovisionnement() && produit.getStock() <= produit.getSeuilMin()) {
             produit.setStock(produit.getStock() + produit.getQuantiteReapprovisionnement());
             produitRepository.save(produit);
             enregistrerMouvement(produit, TypeMouvement.ENTREE, produit.getQuantiteReapprovisionnement());
 
-            // Envoi de la notification (exemple de message de réapprovisionnement)
             notificationService.sendNotification(produit.getFournisseurId(),
                     "Le produit " + produit.getNom() + " a été réapprovisionné.",
                     TypeNotification.STOCK);
@@ -45,7 +47,7 @@ public class StockService {
     }
 
     // Méthode pour vérifier le stock d'un produit
-    public String verifierStock(Integer idProduit) {
+    public String verifierStock(Long idProduit) { // Changement de Integer à Long
         Produit produit = produitRepository.findById(idProduit).orElse(null);
         if (produit == null) {
             return "Produit non trouvé";
@@ -56,7 +58,7 @@ public class StockService {
     }
 
     // Enregistrer une perte de stock
-    public void enregistrerPerte(Integer idProduit, int quantitePerdue) {
+    public void enregistrerPerte(Long idProduit, int quantitePerdue) { // Changement de Integer à Long
         Produit produit = produitRepository.findById(idProduit).orElse(null);
         if (produit != null) {
             if (produit.getStock() >= quantitePerdue) {
@@ -66,7 +68,7 @@ public class StockService {
                 // Enregistrer un mouvement de stock (perte)
                 MouvementStock mouvement = new MouvementStock();
                 mouvement.setProduit(produit);
-                mouvement.setTypeMouvement(TypeMouvement.PERTE);  // Assuming PERTE is a type for stock loss
+                mouvement.setTypeMouvement(TypeMouvement.PERTE);
                 mouvement.setQuantite(quantitePerdue);
                 mouvement.setDateMouvement(new Date());
                 mouvementStockRepository.save(mouvement);
@@ -74,7 +76,7 @@ public class StockService {
                 // Envoi de la notification pour la perte de stock
                 notificationService.sendNotification(produit.getFournisseurId(),
                         "⚠️ Perte de stock pour le produit " + produit.getNom() + ". Quantité perdue : " + quantitePerdue,
-                        TypeNotification.PERTE_STOCK);  // Corrected to use the proper signature
+                        TypeNotification.PERTE_STOCK);
             } else {
                 // Handle the case where there's not enough stock
                 throw new RuntimeException("⚠️ Pas assez de stock pour enregistrer cette perte");
@@ -84,7 +86,8 @@ public class StockService {
         }
     }
 
-    public void enregistrerDon(Integer idProduit, int quantiteDonnee) {
+    // Enregistrer un don de stock
+    public void enregistrerDon(Long idProduit, int quantiteDonnee) { // Changement de Integer à Long
         Produit produit = produitRepository.findById(idProduit).orElse(null);
         if (produit != null) {
             if (produit.getStock() >= quantiteDonnee) {
@@ -94,15 +97,15 @@ public class StockService {
                 // Enregistrer un mouvement de stock pour le don
                 MouvementStock mouvement = new MouvementStock();
                 mouvement.setProduit(produit);
-                mouvement.setTypeMouvement(TypeMouvement.DON);  // Assuming "DON" is a type for donation
+                mouvement.setTypeMouvement(TypeMouvement.DON);
                 mouvement.setQuantite(quantiteDonnee);
                 mouvement.setDateMouvement(new Date());
                 mouvementStockRepository.save(mouvement);
 
                 // Envoi de la notification pour le don
                 notificationService.sendNotification(produit.getFournisseurId(),
-                        " Don effectué pour le produit " + produit.getNom() + ". Quantité donnée : " + quantiteDonnee,
-                        TypeNotification.DON);  // Assuming DON is a notification type
+                        "Don effectué pour le produit " + produit.getNom() + ". Quantité donnée : " + quantiteDonnee,
+                        TypeNotification.DON);
             } else {
                 // Handle the case where there's not enough stock for the donation
                 throw new RuntimeException("⚠️ Pas assez de stock pour enregistrer ce don");
@@ -111,6 +114,4 @@ public class StockService {
             throw new RuntimeException("❌ Produit non trouvé");
         }
     }
-
 }
-

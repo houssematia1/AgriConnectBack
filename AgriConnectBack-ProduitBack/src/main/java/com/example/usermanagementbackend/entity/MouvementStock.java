@@ -2,22 +2,15 @@ package com.example.usermanagementbackend.entity;
 
 import com.example.usermanagementbackend.enums.TypeMouvement;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
+import lombok.Data;
 import java.util.Date;
 
 @Entity
-@Table(name = "mouvements_stock")
-@Getter
-@Setter
-@NoArgsConstructor
+@Data
 public class MouvementStock {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id;
 
     @ManyToOne
     @JoinColumn(name = "produit_id", nullable = false)
