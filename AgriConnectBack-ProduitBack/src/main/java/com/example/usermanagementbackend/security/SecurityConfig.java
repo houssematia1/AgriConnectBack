@@ -13,7 +13,6 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -24,47 +23,39 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(request -> {
                     var corsConfiguration = new org.springframework.web.cors.CorsConfiguration();
-                    corsConfiguration.addAllowedOrigin("http://localhost:4200");
+                    corsConfiguration.addAllowedOriginPattern("*"); // Pour le test uniquement
                     corsConfiguration.addAllowedMethod("*");
                     corsConfiguration.addAllowedHeader("*");
                     corsConfiguration.setAllowCredentials(true);
                     return corsConfiguration;
                 }))
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable()) // Important pour WebSocket
                 .authorizeHttpRequests(auth -> auth
-                        // Autoriser les requêtes OPTIONS pour CORS preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // WebSocket
-                        .requestMatchers("/ws/**", "/topic/**", "/app/**").permitAll()
+                        // WebSocket & STOMP
+                        .requestMatchers("/ws/**", "/ws", "/topic/**", "/app/**").permitAll()
 
                         // Fichiers statiques
-                        .requestMatchers("/index.html", "/static/**", "/assets/**", "/").permitAll()
+                        .requestMatchers("/", "/index.html", "/static/**", "/assets/**").permitAll()
 
-                        // Auth routes
+                        // Authentification
                         .requestMatchers("/api/users/register", "/api/auth/**").permitAll()
 
-                        // API user GET/PUT/DELETE
+                        // Utilisateurs
                         .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/users/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").permitAll()
 
-                        // Notifications
-                        .requestMatchers("/notifications/**").permitAll()
-
-                        // Produits
-                        .requestMatchers("/api/produits/**").permitAll()
-
-                        // Images (pour servir les fichiers uploadés)
-                        .requestMatchers("/uploads/**").permitAll()
+                        // Produits & uploads
+                        .requestMatchers("/api/produits/**", "/uploads/**").permitAll()
 
                         // Toutes les autres requêtes nécessitent une authentification
                         .anyRequest().authenticated()
                 )
-                // Ajouter un log pour diagnostiquer les requêtes bloquées
                 .exceptionHandling(exception -> exception
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            System.out.println("Access Denied for request: " + request.getRequestURI() + " - " + accessDeniedException.getMessage());
+                            System.out.println("Access Denied: " + request.getRequestURI());
                             response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied");
                         })
                 );

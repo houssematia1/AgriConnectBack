@@ -27,10 +27,6 @@ public class StockController {
         return ResponseEntity.ok("Perte de stock enregistrée avec succès");
     }
 
-    // Enregistrer un don de stock
-    @PostMapping("/{id}/don")
-    public ResponseEntity<String> enregistrerDon(@PathVariable Long id, @RequestParam int quantite) {
-        stockService.enregistrerDon(id, quantite);
-        return ResponseEntity.ok("Don de stock enregistré avec succès");
-    }
+
+
 }

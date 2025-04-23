@@ -1,26 +1,34 @@
 package com.example.usermanagementbackend.service;
 
 import com.example.usermanagementbackend.entity.Produit;
+import com.example.usermanagementbackend.entity.Purchase;
 import com.example.usermanagementbackend.enums.Category;
 import com.example.usermanagementbackend.repository.MouvementStockRepository;
 import com.example.usermanagementbackend.repository.ProduitRepository;
+import com.example.usermanagementbackend.repository.PurchaseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.usermanagementbackend.enums.TypeNotification;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ProduitServiceImpl implements ProduitService {
+    private final PurchaseRepository purchaseRepository;
 
     private final ProduitRepository produitRepository;
     private final StockService stockService;
     private final MouvementStockRepository mouvementStockRepository;
-
+    private final NotificationService notificationService;
     @Override
     @Transactional
     public Produit creer(Produit produit) {
@@ -28,14 +36,19 @@ public class ProduitServiceImpl implements ProduitService {
             System.out.println("Création du produit : " + produit);
             produit.setFournisseurId(getCurrentUserId());
 
-            // Sauvegarder d'abord le produit
+            // Sauvegarder le produit
             Produit savedProduit = produitRepository.save(produit);
-            produitRepository.flush(); // Force la synchronisation avec la base de données
+            produitRepository.flush();
 
             System.out.println("Produit créé avec succès : " + savedProduit);
 
-            // Maintenant que le produit a un ID, on peut gérer le stock
+            // Vérifier stock
             stockService.verifierEtReapprovisionner(savedProduit);
+
+            // 🔔 Envoyer notification après création
+            String message = "🆕 Nouveau produit créé : " + savedProduit.getNom();
+            System.out.println("Envoi de la notification pour le nouveau produit : " + message);
+            notificationService.sendNotification(null, message, TypeNotification.NOUVEAU_PRODUIT);
 
             return savedProduit;
         } catch (Exception e) {
@@ -43,6 +56,7 @@ public class ProduitServiceImpl implements ProduitService {
             throw new RuntimeException("Échec de la création du produit: " + e.getMessage(), e);
         }
     }
+
     @Override
     public List<Produit> lire() {
         try {
@@ -183,4 +197,65 @@ public class ProduitServiceImpl implements ProduitService {
     private Long getCurrentUserId() {
         return 1L;
     }
+
+    @Override
+    public List<Produit> recommendProductsBasedOnHistory(Long userId, int limit) {
+        try {
+            // 1. Récupérer l'historique d'achat de l'utilisateur
+            List<Purchase> purchases = purchaseRepository.findByUserId(userId);
+            if (purchases.isEmpty()) {
+                // Fallback : recommander des produits populaires
+                return produitRepository.findAll().stream()
+                        .filter(p -> p.getStock() > 0)
+                        .sorted((p1, p2) -> Double.compare(p2.getPrix(), p1.getPrix()))
+                        .limit(limit)
+                        .collect(Collectors.toList());
+            }
+
+            // 2. Identifier les catégories préférées
+            Map<Category, Long> categoryFrequency = new HashMap<>();
+            for (Purchase purchase : purchases) {
+                for (Produit produit : purchase.getProduits()) {
+                    categoryFrequency.merge(produit.getCategory(), 1L, Long::sum);
+                }
+            }
+
+            // Trier les catégories par fréquence
+            List<Category> preferredCategories = categoryFrequency.entrySet().stream()
+                    .sorted(Map.Entry.<Category, Long>comparingByValue().reversed())
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toList());
+
+            // 3. Recommander des produits des catégories préférées
+            List<Produit> recommendations = new ArrayList<>();
+            for (Category category : preferredCategories) {
+                List<Produit> categoryProducts = produitRepository.findByCategory(category, PageRequest.of(0, limit))
+                        .getContent()
+                        .stream()
+                        .filter(p -> p.getStock() > 0)
+                        .collect(Collectors.toList());
+                recommendations.addAll(categoryProducts);
+                if (recommendations.size() >= limit) break;
+            }
+
+            // 4. Compléter avec des produits populaires si nécessaire
+            if (recommendations.size() < limit) {
+                List<Produit> popularProducts = produitRepository.findAll().stream()
+                        .filter(p -> p.getStock() > 0 && !recommendations.contains(p))
+                        .sorted((p1, p2) -> Double.compare(p2.getPrix(), p1.getPrix()))
+                        .limit(limit - recommendations.size())
+                        .collect(Collectors.toList());
+                recommendations.addAll(popularProducts);
+            }
+
+            return recommendations.stream()
+                    .limit(limit)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la recommandation basée sur l'historique : " + e.getMessage());
+            throw new RuntimeException("Échec de la recommandation: " + e.getMessage(), e);
+        }
+    }
+
 }
+

@@ -12,14 +12,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic"); // Broker pour les messages sortants (ex: /topic/notifications)
-        config.setApplicationDestinationPrefixes("/app"); // Préfixe pour les messages entrants
+        // Permet de recevoir les messages depuis le serveur
+        config.enableSimpleBroker("/topic");
+
+        // Préfixe pour les messages envoyés au serveur (controllers)
+        config.setApplicationDestinationPrefixes("/app");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws") // Endpoint WebSocket
-                .setAllowedOrigins("http://localhost:4200") // Autoriser uniquement le frontend Angular
-                .withSockJS(); // Support SockJS pour les clients sans WebSocket
+        registry.addEndpoint("/ws")
+                .setAllowedOrigins("http://localhost:4200")                .withSockJS(); // SockJS pour compatibilité
     }
+
 }

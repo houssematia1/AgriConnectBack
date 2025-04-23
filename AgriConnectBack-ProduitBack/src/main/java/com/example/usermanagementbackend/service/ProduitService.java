@@ -14,5 +14,5 @@ public interface ProduitService {
     Produit lireParId(Long id); // Utilisation de Long au lieu de Integer
     Page<Produit> lireProduitsPagine(int numeroPage, int taillePage, String triPar);
     Page<Produit> recherche(String recherche, String critere);
-    Page<Produit> findByCategory(Category category, int page, int pageSize, String sortBy);
+    Page<Produit> findByCategory(Category category, int page, int pageSize, String sortBy);List<Produit> recommendProductsBasedOnHistory(Long userId, int limit);
 }

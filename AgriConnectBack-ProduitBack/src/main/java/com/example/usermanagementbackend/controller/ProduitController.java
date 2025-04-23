@@ -109,6 +109,7 @@ public class ProduitController {
                     .body(null);
         }
     }
+
     @GetMapping("/categorie")
     public ResponseEntity<Page<Produit>> getProduitsByCategory(
             @RequestParam("category") Category category,
@@ -154,6 +155,18 @@ public class ProduitController {
         } catch (Exception e) {
             System.err.println("Erreur lors de la sauvegarde de l'image sur Cloudinary : " + e.getMessage());
             throw e;
+        }
+    }
+    @GetMapping("/recommendations/history")
+    public ResponseEntity<List<Produit>> getRecommendationsBasedOnHistory(
+            @RequestParam("userId") Long userId,
+            @RequestParam(value = "limit", defaultValue = "5") int limit) {
+        try {
+            List<Produit> recommendations = produitService.recommendProductsBasedOnHistory(userId, limit);
+            return ResponseEntity.ok(recommendations);
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la récupération des recommandations basées sur l'historique : " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }
