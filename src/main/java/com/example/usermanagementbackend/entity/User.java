@@ -12,6 +12,8 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(columnDefinition = "TEXT")
+    private String faceDescriptor;
 
     private String nom;
     private String prenom;
@@ -30,8 +32,8 @@ public class User {
     private int nombreBlocages = 0;
 
 
-
-
+    @Column(name = "photo")
+    private String photo;
 
     public User() {}
 
@@ -171,4 +173,20 @@ public class User {
     public void incrementerBlocages() {
         this.nombreBlocages++;
     }
+    public String getFaceDescriptor() {
+        return faceDescriptor;
+    }
+    public void setFaceDescriptor(String faceDescriptor) {
+        this.faceDescriptor = faceDescriptor;
+    }
+
+    // Getters and Setters for photo
+    public String getPhoto() {
+        return photo;
+    }
+
+    public void setPhoto(String photo) {
+        this.photo = photo;
+    }
+
 }

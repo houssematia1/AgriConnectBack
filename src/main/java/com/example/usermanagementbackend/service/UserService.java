@@ -14,6 +14,8 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -27,6 +29,9 @@ public class UserService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -45,12 +50,12 @@ public class UserService {
             user.setMotDePasse(hashedPassword);
         }
 
-        // ✅ Génération d’un code à 6 chiffres uniquement
+        // ✅ Génération d'un code à 6 chiffres uniquement
         String code = String.valueOf((int)(Math.random() * 900000) + 100000);
         user.setVerificationCode(code);
         user.setVerified(false);
 
-        // ✅ Envoi de l’email pro
+        // ✅ Envoi de l'email pro
         sendVerificationEmail(user.getEmail(), code);
 
         return userRepository.save(user);
@@ -70,7 +75,7 @@ public class UserService {
                     + "<p>Voici votre code de vérification :</p>"
                     + "<h2 style='color: #2e7d32; font-size: 28px;'>" + code + "</h2>"
                     + "<p>Ce code est valable pour une durée limitée.</p>"
-                    + "<br><p>Cordialement,<br>L’équipe AgriConnect</p>"
+                    + "<br><p>Cordialement,<br>L'équipe AgriConnect</p>"
                     + "</div>";
 
             helper.setText(htmlContent, true);
@@ -83,8 +88,11 @@ public class UserService {
         }
     }
 
+    @Transactional
     public User saveUserDirect(User user) {
-        return userRepository.save(user);
+        User savedUser = userRepository.saveAndFlush(user);
+        entityManager.clear();
+        return savedUser;
     }
 
     public Optional<User> getUserByEmail(String email) {
@@ -95,15 +103,21 @@ public class UserService {
         return userRepository.findById(id);
     }
 
+    @Transactional
     public List<User> getAllUsers() {
-        return userRepository.findAll();
+        List<User> users = userRepository.findAll();
+        entityManager.clear();
+        return users;
     }
 
+    @Transactional
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
             throw new RuntimeException("User not found with id: " + id);
         }
         userRepository.deleteById(id);
+        entityManager.flush();
+        entityManager.clear();
     }
 
     public User updateUser(Long id, User user) {
@@ -155,7 +169,7 @@ public class UserService {
                     + "<p>Voici votre code de réinitialisation de mot de passe :</p>"
                     + "<h2 style='color: #007bff;'>" + code + "</h2>"
                     + "<p>Utilisez ce code pour réinitialiser votre mot de passe.</p>"
-                    + "<br><p>Cordialement,<br>L’équipe AgriConnect</p>"
+                    + "<br><p>Cordialement,<br>L'équipe AgriConnect</p>"
                     + "</div>";
 
             helper.setText(htmlContent, true);
@@ -186,12 +200,14 @@ public class UserService {
         user.setNombreConnexions(user.getNombreConnexions() + 1);
         userRepository.save(user);
     }
+    @Transactional
     public void incrementerActions(Long userId) {
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             user.incrementerActions();
-            userRepository.save(user);
+            userRepository.saveAndFlush(user);
+            entityManager.clear();
         }
     }
     public double predictChurnRisk(Long userId) {
@@ -217,6 +233,22 @@ public class UserService {
         } catch (Exception e) {
             throw new RuntimeException("Erreur dans la prédiction : " + e.getMessage());
         }
+    }
+
+
+    public Map<String, Long> getUserStatistics() {
+        long totalUsers = userRepository.count();
+        long blockedUsers = userRepository.countByIsBlocked(true);
+        long admins = userRepository.countByRole("admin");
+        long clients = userRepository.countByRole("user");
+
+        Map<String, Long> stats = new HashMap<>();
+        stats.put("total", totalUsers);
+        stats.put("blocked", blockedUsers);
+        stats.put("admins", admins);
+        stats.put("clients", clients);
+
+        return stats;
     }
 
 

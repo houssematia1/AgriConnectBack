@@ -21,11 +21,10 @@ public class SecurityConfig {
         http
                 .cors().and()
                 .csrf().disable()
-                .httpBasic().disable()
-                .formLogin().disable()
-                .authorizeRequests()
-                // ⛔ Autoriser toutes les requêtes sans authentification (DEBUG uniquement)
-                .anyRequest().permitAll();
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // ✅ Autoriser OPTIONS
+                        .anyRequest().permitAll()
+                );
 
         return http.build();
     }

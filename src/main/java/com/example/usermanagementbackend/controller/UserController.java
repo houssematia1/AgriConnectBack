@@ -2,11 +2,20 @@ package com.example.usermanagementbackend.controller;
 
 import com.example.usermanagementbackend.entity.User;
 import com.example.usermanagementbackend.service.UserService;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 @RestController
@@ -16,6 +25,9 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private Path fileStorageLocation;
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody User user) {
@@ -72,7 +84,7 @@ public class UserController {
         User user = userOpt.get();
         user.setIsBlocked(true);
         userService.saveUserDirect(user);
-        userService.incrementerActions(1L); // ✅ simule admin ID 1
+        userService.incrementerActions(1L);
 
         return ResponseEntity.ok("Utilisateur bloqué avec succès.");
     }
@@ -87,7 +99,7 @@ public class UserController {
         User user = userOpt.get();
         user.setIsBlocked(false);
         userService.saveUserDirect(user);
-        userService.incrementerActions(1L); // ✅ idem ici
+        userService.incrementerActions(1L);
 
         return ResponseEntity.ok("Utilisateur débloqué avec succès.");
     }
@@ -134,10 +146,6 @@ public class UserController {
         }
     }
 
-    @GetMapping("/stats")
-    public ResponseEntity<Map<String, Long>> getUserStatistics() {
-        return ResponseEntity.ok(userService.getUserStats());
-    }
     @GetMapping("/predict/{id}")
     public ResponseEntity<?> predictRisk(@PathVariable Long id) {
         try {
@@ -147,4 +155,76 @@ public class UserController {
             return ResponseEntity.status(500).body("Erreur IA : " + e.getMessage());
         }
     }
+
+    @GetMapping("/stats")
+    public ResponseEntity<Map<String, Long>> getStats() {
+        return ResponseEntity.ok(userService.getUserStatistics());
+    }
+
+    @PostMapping("/{id}/upload-photo")
+    public ResponseEntity<?> uploadPhoto(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+
+        try {
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body("Veuillez sélectionner un fichier");
+            }
+
+            // Vérification du type de fichier
+            if (!file.getContentType().startsWith("image/")) {
+                return ResponseEntity.badRequest().body("Seules les images sont autorisées");
+            }
+
+            // Vérification de la taille (5MB max)
+            if (file.getSize() > 5 * 1024 * 1024) {
+                return ResponseEntity.badRequest().body("Le fichier est trop volumineux (5MB maximum)");
+            }
+
+            // Génération d'un nom de fichier unique
+            String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+
+            // Sauvegarde du fichier
+            Path targetLocation = fileStorageLocation.resolve(fileName);
+            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+
+            // Mise à jour de l'utilisateur avec le nom du fichier
+            Optional<User> userOpt = userService.getUserById(id);
+            if (!userOpt.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            User user = userOpt.get();
+            user.setPhoto(fileName);
+            userService.saveUserDirect(user);
+
+            return ResponseEntity.ok(fileName);
+        } catch (IOException ex) {
+            return ResponseEntity.status(500).body("Erreur lors de l'upload du fichier");
+        }
+    }
+
+    @GetMapping("/photo/{filename:.+}")
+    public ResponseEntity<UrlResource> getPhoto(@PathVariable String filename) {
+        try {
+            Path file = fileStorageLocation.resolve(filename).normalize();
+            UrlResource resource = new UrlResource(file.toUri());
+
+            if (resource.exists()) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_JPEG)
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
+                        .body(resource);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (IOException ex) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+    @GetMapping("/ping")
+    public ResponseEntity<String> ping() {
+        return ResponseEntity.ok("API OK");
+    }
 }
+
