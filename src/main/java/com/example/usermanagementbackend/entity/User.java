@@ -29,7 +29,7 @@ public class User {
         this.role = role;
         this.adresseLivraison = adresseLivraison;
     }
-
+//test conflit
     // Getters and setters
 
     public Long getId() {
