@@ -17,7 +17,7 @@ public class User {
     private String numeroDeTelephone;
     private String role;
     private String adresseLivraison;
-
+// test test
     public User() {}
 
     public User(String nom, String prenom, String email, String motDePasse, String numeroDeTelephone, String role, String adresseLivraison) {
