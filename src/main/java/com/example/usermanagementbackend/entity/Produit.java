@@ -1,27 +1,34 @@
 package com.example.usermanagementbackend.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
+import com.example.usermanagementbackend.enums.Category;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 @Entity
-@Table(name = "users")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Produit {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String nom;
-    private String prenom;
-    private String email;
-    private String motDePasse;
-    private String numeroDeTelephone;
-    private String role;
-    private String adresseLivraison;
+    private String description;
+    private double prix;
+    private String devise;
+    private Double taxe;
+    private String dateExpiration;
+    private int stock;
+    private int seuilMin;
+    private String fournisseur;
+    private Long fournisseurId;
+    private boolean autoReapprovisionnement;
+    private int quantiteReapprovisionnement;
 
+    @Enumerated(EnumType.STRING)
+    private Category category;
 
-  
+    private String image;
 }
