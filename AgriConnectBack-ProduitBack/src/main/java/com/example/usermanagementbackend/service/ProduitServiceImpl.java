@@ -204,10 +204,10 @@ public class ProduitServiceImpl implements ProduitService {
             // 1. Récupérer l'historique d'achat de l'utilisateur
             List<Purchase> purchases = purchaseRepository.findByUserId(userId);
             if (purchases.isEmpty()) {
-                // Fallback : recommander des produits populaires
-                return produitRepository.findAll().stream()
+                // Fallback : retourner les produits les plus vendus
+                return produitRepository.findAll(Sort.by(Sort.Direction.DESC, "salesCount"))
+                        .stream()
                         .filter(p -> p.getStock() > 0)
-                        .sorted((p1, p2) -> Double.compare(p2.getPrix(), p1.getPrix()))
                         .limit(limit)
                         .collect(Collectors.toList());
             }
@@ -226,11 +226,13 @@ public class ProduitServiceImpl implements ProduitService {
                     .map(Map.Entry::getKey)
                     .collect(Collectors.toList());
 
-            // 3. Recommander des produits des catégories préférées
+            // 3. Recommander des produits des catégories préférées, triés par salesCount
             List<Produit> recommendations = new ArrayList<>();
             for (Category category : preferredCategories) {
-                List<Produit> categoryProducts = produitRepository.findByCategory(category, PageRequest.of(0, limit))
-                        .getContent()
+                List<Produit> categoryProducts = produitRepository.findByCategory(
+                                category,
+                                PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "salesCount"))
+                        ).getContent()
                         .stream()
                         .filter(p -> p.getStock() > 0)
                         .collect(Collectors.toList());
@@ -238,14 +240,14 @@ public class ProduitServiceImpl implements ProduitService {
                 if (recommendations.size() >= limit) break;
             }
 
-            // 4. Compléter avec des produits populaires si nécessaire
+            // 4. Compléter avec les produits les plus vendus si nécessaire
             if (recommendations.size() < limit) {
-                List<Produit> popularProducts = produitRepository.findAll().stream()
+                List<Produit> topSellingProducts = produitRepository.findAll(Sort.by(Sort.Direction.DESC, "salesCount"))
+                        .stream()
                         .filter(p -> p.getStock() > 0 && !recommendations.contains(p))
-                        .sorted((p1, p2) -> Double.compare(p2.getPrix(), p1.getPrix()))
                         .limit(limit - recommendations.size())
                         .collect(Collectors.toList());
-                recommendations.addAll(popularProducts);
+                recommendations.addAll(topSellingProducts);
             }
 
             return recommendations.stream()
@@ -255,6 +257,13 @@ public class ProduitServiceImpl implements ProduitService {
             System.err.println("Erreur lors de la recommandation basée sur l'historique : " + e.getMessage());
             throw new RuntimeException("Échec de la recommandation: " + e.getMessage(), e);
         }
+    }
+    @Override
+    public List<Produit> getTopSellingProducts(int limit) {
+        return produitRepository.findAll(Sort.by(Sort.Direction.DESC, "salesCount"))
+                .stream()
+                .limit(limit)
+                .toList();
     }
 
 }

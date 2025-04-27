@@ -1,10 +1,13 @@
 package com.example.usermanagementbackend.service;
 
+import com.example.usermanagementbackend.entity.Fidelite;
 import com.example.usermanagementbackend.entity.User;
 import com.example.usermanagementbackend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,8 +19,13 @@ public class UserService {
     private UserRepository userRepository;
 
     @Autowired
+    @Lazy
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private FideliteService fideliteService;
+
+    @Transactional
     public User saveUser(User user) {
         Optional<User> existingUser = userRepository.findByEmail(user.getEmail());
         if (existingUser.isPresent()) {
@@ -27,7 +35,12 @@ public class UserService {
             String hashedPassword = passwordEncoder.encode(user.getMotDePasse());
             user.setMotDePasse(hashedPassword);
         }
-        return userRepository.save(user);
+        // Save the user first
+        User savedUser = userRepository.save(user);
+        // Create and save Fidelite using FideliteService
+        Fidelite fidelite = new Fidelite(null, 0, "Bronze", savedUser);
+        fideliteService.saveFidelite(fidelite);
+        return savedUser;
     }
 
     public Optional<User> getUserByEmail(String email) {
@@ -65,8 +78,10 @@ public class UserService {
         existingUser.setNumeroDeTelephone(user.getNumeroDeTelephone());
         existingUser.setRole(user.getRole());
         existingUser.setAdresseLivraison(user.getAdresseLivraison());
+        existingUser.setDateOfBirth(user.getDateOfBirth());
         return userRepository.save(existingUser);
     }
+
     public List<User> searchUsers(String query) {
         return userRepository.findByNomContainingIgnoreCaseOrPrenomContainingIgnoreCaseOrEmailContainingIgnoreCase(query, query, query);
     }

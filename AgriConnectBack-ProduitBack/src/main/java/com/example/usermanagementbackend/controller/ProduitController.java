@@ -169,4 +169,14 @@ public class ProduitController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+    @GetMapping("/top-selling")
+    public ResponseEntity<List<Produit>> getTopSellingProducts(@RequestParam int limit) {
+        try {
+            return ResponseEntity.ok(produitService.getTopSellingProducts(limit));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(null);
+        }
+    }
 }

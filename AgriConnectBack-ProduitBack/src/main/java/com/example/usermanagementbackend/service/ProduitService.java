@@ -3,6 +3,7 @@ package com.example.usermanagementbackend.service;
 import com.example.usermanagementbackend.entity.Produit;
 import com.example.usermanagementbackend.enums.Category;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -14,5 +15,6 @@ public interface ProduitService {
     Produit lireParId(Long id); // Utilisation de Long au lieu de Integer
     Page<Produit> lireProduitsPagine(int numeroPage, int taillePage, String triPar);
     Page<Produit> recherche(String recherche, String critere);
-    Page<Produit> findByCategory(Category category, int page, int pageSize, String sortBy);List<Produit> recommendProductsBasedOnHistory(Long userId, int limit);
-}
+    Page<Produit> findByCategory(Category category, int page, int pageSize, String sortBy);
+    List<Produit> getTopSellingProducts(int limit);
+    List<Produit> recommendProductsBasedOnHistory(Long userId, int limit);}
