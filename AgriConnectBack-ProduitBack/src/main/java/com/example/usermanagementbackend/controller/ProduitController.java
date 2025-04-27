@@ -179,4 +179,27 @@ public class ProduitController {
             return ResponseEntity.status(500).body(null);
         }
     }
+    @GetMapping("/search")
+    public ResponseEntity<Page<Produit>> searchProducts(
+            @RequestParam(required = false) String nom,
+            @RequestParam(required = false) Category category,
+            @RequestParam(required = false) Double minPrice,
+            @RequestParam(required = false) Double maxPrice,
+            @RequestParam(required = false) String fournisseur,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "nom") String sort) {
+
+        Page<Produit> result = produitService.searchProducts(
+                nom,
+                category,
+                minPrice,
+                maxPrice,
+                fournisseur,
+                page,
+                size,
+                sort);
+
+        return ResponseEntity.ok(result);
+    }
 }

@@ -9,6 +9,7 @@ import com.example.usermanagementbackend.repository.PurchaseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -264,6 +265,44 @@ public class ProduitServiceImpl implements ProduitService {
                 .stream()
                 .limit(limit)
                 .toList();
+    }
+    @Override
+    public Page<Produit> searchProducts(
+            String nom,
+            Category category,
+            Double minPrice,
+            Double maxPrice,
+            String fournisseur,
+            int page,
+            int size,
+            String sort) {
+
+        try {
+            // Gestion du tri
+            Sort.Direction direction = Sort.Direction.ASC;
+            String property = "id";
+
+            if (sort != null && !sort.isEmpty()) {
+                if (sort.startsWith("-")) {
+                    direction = Sort.Direction.DESC;
+                    property = sort.substring(1);
+                } else {
+                    property = sort;
+                }
+            }
+
+            Pageable pageable = PageRequest.of(page, size, direction, property);
+
+            return produitRepository.searchProducts(
+                    nom,
+                    category,
+                    minPrice,
+                    maxPrice,
+                    fournisseur,
+                    pageable);
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la recherche des produits", e);
+        }
     }
 
 }

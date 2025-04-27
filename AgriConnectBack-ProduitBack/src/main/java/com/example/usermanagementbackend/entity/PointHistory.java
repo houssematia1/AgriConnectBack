@@ -1,6 +1,7 @@
 package com.example.usermanagementbackend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
 import lombok.*;
@@ -14,6 +15,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class PointHistory {
 
     @Id
@@ -30,5 +32,15 @@ public class PointHistory {
 
     private LocalDate date;
 
+    @Column(name = "points_added", nullable = false)
+    private int points_added = 0; // Default value to satisfy NOT NULL constraint
 
+    // Constructor used in FideliteService
+    public PointHistory(Fidelite fidelite, int points, String description, LocalDate date) {
+        this.fidelite = fidelite;
+        this.points = points;
+        this.description = description;
+        this.date = date;
+        this.points_added = points;
+    }
 }

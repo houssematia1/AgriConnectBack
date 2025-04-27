@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface IFideliteService {
-    List<Fidelite> getAllFidelites();
+    List<Fidelite> getAllFidelites(String search);
     Fidelite getFideliteById(Integer id);
     Fidelite saveFidelite(Fidelite fidelite);
     void deleteFidelite(Integer id);

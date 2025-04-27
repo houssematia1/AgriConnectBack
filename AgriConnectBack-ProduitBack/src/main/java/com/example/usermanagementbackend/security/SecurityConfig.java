@@ -37,8 +37,11 @@ public class SecurityConfig {
                         .requestMatchers("/notifications/**").permitAll()
                         .requestMatchers("/api/produits/**").permitAll()
                         .requestMatchers("/promotions/**").permitAll()
-                        .requestMatchers("/api/fidelite/**").permitAll() // Added for Fidelite endpoints
+                        .requestMatchers("/api/fidelite/**").permitAll()
+                        .requestMatchers("/api/purchases/**").permitAll()// Added for Fidelite endpoints
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers("/api/stock/**").permitAll()
+                        .requestMatchers("/api/recommendations/**").permitAll()
                         .anyRequest().authenticated()
                 );
 

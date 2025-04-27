@@ -5,6 +5,8 @@ import com.example.usermanagementbackend.entity.PointHistory;
 import com.example.usermanagementbackend.entity.User;
 import com.example.usermanagementbackend.repository.FideliteRepository;
 import com.example.usermanagementbackend.repository.PointHistoryRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,8 @@ import java.util.Optional;
 @Service
 public class FideliteService implements IFideliteService {
 
+    private static final Logger logger = LoggerFactory.getLogger(FideliteService.class);
+
     @Autowired
     private FideliteRepository fideliteRepository;
 
@@ -28,11 +32,16 @@ public class FideliteService implements IFideliteService {
 
     // --- CRUD Operations ---
     @Override
-    public List<Fidelite> getAllFidelites() {
-        return fideliteRepository.findAllWithUser();
+    @Transactional(readOnly = true)
+    public List<Fidelite> getAllFidelites(String search) {
+        if (search == null || search.trim().isEmpty()) {
+            return fideliteRepository.findAllWithUser();
+        }
+        return fideliteRepository.findByUserSearch(search);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Fidelite getFideliteById(Integer id) {
         return fideliteRepository.findByIdWithUser(id)
                 .orElseThrow(() -> new RuntimeException("Programme de fidélité non trouvé"));
@@ -73,7 +82,7 @@ public class FideliteService implements IFideliteService {
                 .orElse(new Fidelite(null, 0, "Bronze", user));
         fidelite.setPoints(fidelite.getPoints() + points);
         fidelite.mettreAJourNiveau();
-        PointHistory history = new PointHistory(null, fidelite, points, "Ajout manuel", LocalDate.now());
+        PointHistory history = new PointHistory(fidelite, points, "Ajout manuel", LocalDate.now());
         pointHistoryRepository.save(history);
         fideliteRepository.save(fidelite);
     }
@@ -91,7 +100,7 @@ public class FideliteService implements IFideliteService {
         int points = (int) purchaseAmount; // 1 point per dinar
         fidelite.setPoints(fidelite.getPoints() + points);
         fidelite.mettreAJourNiveau();
-        PointHistory history = new PointHistory(null, fidelite, points, "Achat de " + purchaseAmount + " TND", LocalDate.now());
+        PointHistory history = new PointHistory(fidelite, points, "Achat de " + purchaseAmount + " TND", LocalDate.now());
         pointHistoryRepository.save(history);
         return fideliteRepository.save(fidelite);
     }
@@ -112,26 +121,38 @@ public class FideliteService implements IFideliteService {
         int birthdayPoints = 50;
         fidelite.setPoints(fidelite.getPoints() + birthdayPoints);
         fidelite.mettreAJourNiveau();
-        PointHistory history = new PointHistory(null, fidelite, birthdayPoints, "Bonus d'anniversaire", LocalDate.now());
+        PointHistory history = new PointHistory(fidelite, birthdayPoints, "Bonus d'anniversaire", LocalDate.now());
         pointHistoryRepository.save(history);
         return fideliteRepository.save(fidelite);
     }
 
     // --- Other Methods ---
     @Override
+    @Transactional(readOnly = true)
     public List<PointHistory> getPointHistory(Long userId) {
-        Fidelite fidelite = fideliteRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Programme de fidélité non trouvé"));
-        return pointHistoryRepository.findByFideliteId(fidelite.getId());
+        try {
+            Fidelite fidelite = fideliteRepository.findByUserId(userId)
+                    .orElseThrow(() -> new RuntimeException("Programme de fidélité non trouvé"));
+            return pointHistoryRepository.findByFideliteId(fidelite.getId());
+        } catch (Exception ex) {
+            logger.error("Error fetching point history for user {}: {}", userId, ex.getMessage(), ex);
+            throw ex;
+        }
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Fidelite> getFideliteByUserId(Long userId) {
-        return fideliteRepository.findByUserId(userId);
+        try {
+            return fideliteRepository.findByUserId(userId);
+        } catch (Exception ex) {
+            logger.error("Error fetching Fidelite for user {}: {}", userId, ex.getMessage(), ex);
+            throw ex;
+        }
     }
 
     // --- Scheduled Task for Birthday Points ---
-    @Scheduled(cron = "0 0 9 * * *") // Exécute tous les jours à 9h00
+    @Scheduled(cron = "0 0 9 * * *") // Runs daily at 9:00 AM
     @Transactional
     public void checkAndAddBirthdayPoints() {
         List<User> allUsers = userService.getAllUsers();
@@ -142,9 +163,8 @@ public class FideliteService implements IFideliteService {
                     user.getDateOfBirth().getDayOfMonth() == today.getDayOfMonth()) {
                 try {
                     addBirthdayPoints(user.getId());
-                } catch (RuntimeException e) {
-                    // Log l'erreur mais continue pour les autres utilisateurs
-                    System.err.println("Erreur lors de l'ajout des points d'anniversaire pour l'utilisateur " + user.getId() + ": " + e.getMessage());
+                } catch (Exception e) {
+                    logger.error("Error adding birthday points for user {}: {}", user.getId(), e.getMessage(), e);
                 }
             }
         }

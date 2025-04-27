@@ -11,11 +11,19 @@ import java.util.Optional;
 
 @Repository
 public interface FideliteRepository extends JpaRepository<Fidelite, Integer> {
-    Optional<Fidelite> findByUserId(Long userId);
 
-    @Query("SELECT f FROM Fidelite f JOIN FETCH f.user WHERE f.id = :id")
-    Optional<Fidelite> findByIdWithUser(@Param("id") Integer id);
-    @Query("SELECT f FROM Fidelite f JOIN FETCH f.user")
+    @Query("SELECT f FROM Fidelite f JOIN FETCH f.user u")
     List<Fidelite> findAllWithUser();
 
+    @Query("SELECT f FROM Fidelite f JOIN FETCH f.user u WHERE f.id = :id")
+    Optional<Fidelite> findByIdWithUser(@Param("id") Integer id);
+
+    Optional<Fidelite> findByUserId(Long userId);
+
+    @Query("SELECT f FROM Fidelite f JOIN FETCH f.user u " +
+            "WHERE (:search IS NULL OR :search = '' OR " +
+            "LOWER(u.nom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(u.prenom) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')))")
+    List<Fidelite> findByUserSearch(@Param("search") String search);
 }
